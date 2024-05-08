@@ -3,13 +3,13 @@
 % The coloring distracts the author.
 \usepackage[bw]{agda}
 
-\title{\AgdaModule{Network}: An Extensible but Slightly Clever Agda Module for the Representation of Various Entities in Computer Networking}
+\title{\AgdaModule{Network}: An Extensible and Expressive but Slightly Clever Agda Module for the Representation of Various Entities in Computer Networking}
 
 \begin{document}
 \maketitle{}
 
 \begin{abstract}
-The author presents and explains \AgdaModule{Network}, which is an Agda representation of network packets and connections.  Notable properties of \AgdaModule{Network} include extensibility, real-world examples, and at least some degree of formal verification.  However, \AgdaModule{Network} \emph{cannot} be directly used to actually establish network connections in the real world; \AgdaModule{Network} is a \texttt{--safe} module and, therefore, does not refer to \AgdaDatatype{IO}, which would be necessary for such establishment.
+The author presents and explains \AgdaModule{Network}, which is an Agda representation of network packets and connections.  Notable properties of \AgdaModule{Network} include extensibility, expressive typing for protocols and packets, real-world examples, and at least some degree of formal verification.  However, \AgdaModule{Network} \emph{cannot} be directly used to actually establish network connections in the real world; \AgdaModule{Network} is a \texttt{--safe} module and, therefore, does not refer to \AgdaDatatype{IO}, which would be necessary for such establishment.
 \end{abstract}
 
 \chapter{Boilerplate Stuff}
