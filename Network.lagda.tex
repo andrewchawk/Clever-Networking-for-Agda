@@ -17,6 +17,7 @@ The author wishes to \emph{not} rewrite \emph{all} utilities.
 
 \begin{code}
 open import Data.Fin using (Fin; toℕ)
+open import Data.String using (String)
 open import Data.Nat
 open import Data.List
 open import Data.Maybe
@@ -31,8 +32,8 @@ Formally, where \(P\) is a certain subset of networking protocols, \(P\) is char
 \begin{code}
 record Protocol : Set1 where
   field
-    name : List ℕ
-    shortName : Maybe (List ℕ)
+    name : String
+    shortName : Maybe String
     addressType : Set
     portType : Set
     packetType : Set
