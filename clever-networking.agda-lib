@@ -1,0 +1,3 @@
+name: clever-networking-0.0.0.1
+include: .
+depend: standard-library-2.1

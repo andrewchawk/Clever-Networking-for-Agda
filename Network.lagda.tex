@@ -1,4 +1,4 @@
-\documentclass{article}
+\documentclass{report}
 
 % The coloring distracts the author.
 \usepackage[bw]{agda}
@@ -12,16 +12,18 @@
 The author presents and explains \AgdaModule{Network}, which is an Agda representation of network packets and connections.  Notable properties of \AgdaModule{Network} include extensibility, real-world examples, and at least some degree of formal verification.  However, \AgdaModule{Network} \emph{cannot} be directly used to actually establish network connections in the real world; \AgdaModule{Network} is a \texttt{--safe} module and, therefore, does not refer to \AgdaDatatype{IO}, which would be necessary for such establishment.
 \end{abstract}
 
-\section{Package Imports}
+\chapter{Imported Packages}
 The author wishes to \emph{not} rewrite \emph{all} utilities.
 
 \begin{code}
-open import Agda.Builtin.Nat
-open import Agda.Builtin.List
-open import Agda.Builtin.Maybe
+open import Data.Fin using (Fin; toℕ)
+open import Data.Nat
+open import Data.List
+open import Data.Maybe
+open import Data.Product
 \end{code}
 
-\section{Representation of Protocols}
+\chapter{Representation of Protocols}
 Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Additionally, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
 
 \AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, \AgdaField{Protocol.portType} \AgdaBound{p} is likely the type of ports which are used by the \AgdaBound{p} protocol, and \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
@@ -29,13 +31,231 @@ Formally, where \(P\) is a certain subset of networking protocols, \(P\) is char
 \begin{code}
 record Protocol : Set1 where
   field
-    name : List Nat
-    shortName : Maybe (List Nat)
+    name : List ℕ
+    shortName : Maybe (List ℕ)
     addressType : Set
     portType : Set
     packetType : Set
 \end{code}
 
-\subsection{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
+\section{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
 \AgdaRecord{Protcol} is good for representing many sorts of protocols but may be incapable of unambiguously representing all imaginable protocols; the author is uncertain of a formal definition of ``network protocol'', and awareness of such a definition would facilitate defining a thing which resembles \AgdaRecord{Protocol} but an really be used to represent \emph{any} network protocol.  The author \emph{may} conduct some more research into the idea of network protocols but, in the meantime, thinks that \AgdaRecord{Protocol} should suffice for most purposes.
+
+\section{Selected Examples}
+
+\subsection{IPv4}
+For the sake of brevity and general readability, within this example, the ``\AgdaModule{TCP}'' prefix is omitted from the names of functions, constants, and such.
+
+\begin{code}
+module IPv4 where
+\end{code}
+
+RFC 791 describes version 4 of the Internet Protocol, which is also known as ``IPv4'', indicates that IPv4 addresses are 32-bit integers, and defines the IPv4 packet structure.  Specifically, RFC 791 indicates that any IPv4 packet \(p\) consists of the concatenation of the following fields:
+\begin{enumerate}
+	\item a four-bit version number,
+	\item a four-bit definition of the length of the header which \emph{must} be greater than or equal to five,
+	\item a six-bit differentiated services code point,
+	\item a two-bit explicit congestion notification,
+	\item a sixteen-bit integer which defines the total length of \(p\),
+	\item a sixteen-bit identification field,
+	\item a zero bit,
+	\item a bit which indicates whether or not \(p\) must not be fragmented, with a one indicating that the packet must \emph{not} be fragmented},
+	\item a bit which indicates whether or not \(p\) is the last of a series of fragmented packets,
+	\item a thirteen-bit fragment offset field,
+	\item an eight-bit time-to-live field,
+	\item an eight-bit value which identifies the payload protocol,
+	\item a sixteen-bit checksum of the header,
+	\item a thirty-two-bit IPv4 address, indicating the source of \(p\),
+	\item a thirty-two-bit IPv4 address, indicating the destination of \(p\),
+	\item an options field whose length is calculable, and
+	\item a payload of calculable length.
+\end{enumerate}
+
+A naive approach involves using \AgdaDatatype{Fin} for everything.  However, the author uses the term ``naive'' because the author prefers the alternative, which involves the use of more expressive datatypes which are specifically designed \emph{for} IPv4, although the \AgdaDatatype{Fin} approach really does work well for some fields.
+
+\subsubsection{Addresses}
+That at least two fields can be absent from the \AgdaField{Protocol.packetType} type may be immediately obvious; \AgdaRecord{Protocol} has native support for address schemes.  At this point, an IPv4 address type should probably be created, so the author \emph{has} gone and created such a type!  Specifically, the type is \AgdaFunction{Address}, which is defined as follows:
+
+\begin{code}
+  Address : Set
+  Address = Fin (2 ^ 32)
+\end{code}
+
+The definition of \AgdaFunction{Address} follows pretty directly from the RFC's definition of IPv4 addresses; \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{^}} \AgdaBound{x}\AgdaSymbol) is the type of the \AgdaBound{x}-bit natural numbers.
+
+\subsubsection{The Header Length Field}
+Naively, one can say that the header length field is the combination of an appropriate \AgdaDatatype{Fin} number \(n\) and a proof which indicates that \(n \geq 5\).  In this case, the author actually \emph{likes} the naive approach.
+
+\begin{code}
+  IHL : Set
+  IHL = Σ (Fin (2 ^ 4)) (\ n -> toℕ n ≥ 5)
+\end{code}
+
+\subsubsection{The Three Option Bits}
+An approach to representing the three option bits which yields a not-particularly-readable result involves the use of \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\circumflex}} \AgdaNumber{3}\AgdaSymbol).  However, the option bits an instead be represented as dedicated \AgdaDatatype{Bool} fields in a record type; this approach offers significantly more readability and prevents confusing the purposes of the individual option bits.
+
+\subsubsection{Payload Protocol}
+The author suspects that the reader can predict the naive solution; accordingly, to preserve the author's dwindling sanity, the author will refrain from describing the naive approach.  The author's preferred approach involves defining a datatype which \emph{readably} represents the protocols which can be indicated by the payload protocol field.  The definition of the datatype is as follows:
+
+\begin{code}
+  data PayloadProtocol : Set
+    where
+    HOPOPT
+     ICMP
+     IGMP
+     GGP
+     IP-in-IP
+     ST
+     TCP
+     CBT
+     EGP
+     IGP
+     BBN-RCC-MON
+     NVP-II
+     PUP
+     ARGUS
+     EMCON
+     XNET
+     CHAOS
+     UDP
+     MUX
+     CDN-MEAS
+     HMP
+     PRM
+     XNS-IDP
+     TRUNK-1
+     TRUNK-2
+     LEAF-1
+     LEAF-2
+     RDP
+     IRTP
+     ISO-TP4
+     NETBLT
+     MFE-NSP
+     MERIT-INP
+     DCCP
+     3PC
+     IDPR
+     XTP
+     DDP
+     IDPR-CMTP
+     TP++
+     IL
+     IPv6
+     SDRP
+     IPv6-Route
+     IPv6-Frag
+     IDRP
+     RSVP
+     GRE
+     DSR
+     BNA
+     ESP
+     AH
+     I-NLSP
+     SwlPe
+     NARP
+     MOBILE
+     TLSP
+     SKIP
+     IPv6-ICMP
+     IPv6-NoNxt
+     IPv6-Opts
+     HostInternalProtocol
+     CFTP
+     LocalNetwork
+     SAT-EXPAK
+     KRYPTOLAN
+     RVD
+     IPPC
+     DistributedFileSystem
+     SAT-MON
+     VISA
+     IPCU
+     CPNX
+     CPHB
+     WSN
+     PVP
+     BR-SAT-MON
+     SUN-ND
+     WB-MON
+     WB-EXPAK
+     ISO-IP
+     VMTP
+     SECURE-VMTP
+     VINES
+     TTP
+     IPTM
+     NSFNET-IGP
+     DGP
+     TCF
+     EIGRP
+     OSPF
+     Sprite-RPC
+     LARP
+     MTP
+     AX-25
+     OS
+     MICP
+     SCC-SP
+     ETHERIP
+     ENCAP
+     PrivateEncryption
+     GMTP
+     IFMP
+     PNNI
+     PIM
+     ARIS
+     SCPS
+     QNX
+     A/N
+     IPComp
+     SNP
+     Compaq-Peer
+     IPX-in-IP
+     VRRP
+     PGM
+     ZeroHop
+     L2TP
+     DDX
+     IATP
+     STP
+     SRP
+     UTI
+     SMP
+     SM
+     PTP
+     IS-IS-over-IPv4
+     FIRE
+     CRTP
+     CRUDP
+     SSCOPMCE
+     IPLT
+     SPS
+     PIPE
+     SCTP
+     FC
+     RSVP-E2E-IGNORE
+     MobilityHeader
+     UDPLite
+     MPLS-in-IP
+     manet
+     HIP
+     Shim6
+     WESP
+     ROHC
+     Ethernet
+     AGGFRAG
+     NSH : PayloadProtocol
+    Unassigned : Fin 107 -> PayloadProtocol
+    Experimental : Fin 2 -> PayloadProtocol
+\end{code}
+
+The author hopes that the meanings of the names of most constructors of arity 0 are obvious.  However, the author \emph{will} clarify that \AgdaInductiveConstructor{AX-25} corresponds to AX.25.  The author will \emph{also} clarify that \AgdaInductiveConstructor{Unassigned} \AgdaBound{n} is the \(k\)th IP protocol nmber, where \(k\) is defined to be equal to \AgdaNumber{146} \AgdaOperator{\AgdaFunction{+}} \AgdaFunction{toℕ} \AgdaBound{n}.
+
+\paragraph{Downside}
+The main downside of this representation is the number of lines which are necessary for this description.  But the author still prefers \emph{this} solution over the naive solution, which is relatively unreadable and is \emph{still} left as an exercise for the reader.
+
+\paragraph{IPv6-Specific Values}
+Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor{Ethernet}, are actually specific to IPv6.  However, IPv6 and IPv4 use the same IP protocol numbers, and the author does not believe that listing all such protocol numbers is in any real way problematic.
 \end{document}
