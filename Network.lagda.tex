@@ -27,7 +27,7 @@ open import Data.Product
 \chapter{Representation of Protocols}
 Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Additionally, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
 
-\AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, \AgdaField{Protocol.portType} \AgdaBound{p} is likely the type of ports which are used by the \AgdaBound{p} protocol, and \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
+\AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, and \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
 
 \begin{code}
 record Protocol : Set1 where
@@ -35,7 +35,6 @@ record Protocol : Set1 where
     name : String
     shortName : Maybe String
     addressType : Set
-    portType : Set
     packetType : Set
 \end{code}
 
