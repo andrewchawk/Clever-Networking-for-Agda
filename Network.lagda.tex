@@ -258,4 +258,32 @@ The main downside of this representation is the number of lines which are necess
 
 \paragraph{IPv6-Specific Values}
 Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor{Ethernet}, are actually specific to IPv6.  However, IPv6 and IPv4 use the same IP protocol numbers, and the author does not believe that listing all such protocol numbers is in any real way problematic.
+
+\chapter{Representation of Abstract Packets}
+Without a representation of trasmissions, what is the usefulness of a system for representing protcols?  The author does not care and will define a datatype which facilitates representing the packets of any given protocol.
+
+A packet \(p\) for a protocol \(P\) can be thought of as being a combination of the following attributes:
+\begin{itemize}
+	\item the \(P\) address of the sender of \(p\),
+	\item the \(P\) address of the destination for \(p\), and
+	\item the actual content or payload of \(p\).
+\end{itemize}
+
+The address type and content type are protocol-specific.  Fortunately, with dependent types, defining such a type is a simple process.  This paper's definition of an abstract packet is as follows:
+
+\begin{code}
+record Packet (protocol : Protocol) : Set where
+  field
+    source
+     destination : Protocol.addressType protocol
+    content : Protocol.packetType protocol
+\end{code}
+
+For a given \AgdaRecord{Packet} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
+\begin{itemize}
+	\item \AgdaField{Packet.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
+	\item \AgdaField{Packet.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
+	\item \AgdaField{Packet.content} \AgdaBound{p} is the payload of \AgdaBound{p}.
+\end{itemize}
+
 \end{document}
