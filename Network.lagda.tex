@@ -1,0 +1,41 @@
+\documentclass{article}
+
+% The coloring distracts the author.
+\usepackage[bw]{agda}
+
+\title{\AgdaModule{Network}: An Extensible but Slightly Clever Agda Module for the Representation of Various Entities in Computer Networking}
+
+\begin{document}
+\maketitle{}
+
+\begin{abstract}
+The author presents and explains \AgdaModule{Network}, which is an Agda representation of network packets and connections.  Notable properties of \AgdaModule{Network} include extensibility, real-world examples, and at least some degree of formal verification.  However, \AgdaModule{Network} \emph{cannot} be directly used to actually establish network connections in the real world; \AgdaModule{Network} is a \texttt{--safe} module and, therefore, does not refer to \AgdaDatatype{IO}, which would be necessary for such establishment.
+\end{abstract}
+
+\section{Package Imports}
+The author wishes to \emph{not} rewrite \emph{all} utilities.
+
+\begin{code}
+open import Agda.Builtin.Nat
+open import Agda.Builtin.List
+open import Agda.Builtin.Maybe
+\end{code}
+
+\section{Representation of Protocols}
+Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Additionally, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
+
+\AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, \AgdaField{Protocol.portType} \AgdaBound{p} is likely the type of ports which are used by the \AgdaBound{p} protocol, and \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
+
+\begin{code}
+record Protocol : Set1 where
+  field
+    name : List Nat
+    shortName : Maybe (List Nat)
+    addressType : Set
+    portType : Set
+    packetType : Set
+\end{code}
+
+\subsection{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
+\AgdaRecord{Protcol} is good for representing many sorts of protocols but may be incapable of unambiguously representing all imaginable protocols; the author is uncertain of a formal definition of ``network protocol'', and awareness of such a definition would facilitate defining a thing which resembles \AgdaRecord{Protocol} but an really be used to represent \emph{any} network protocol.  The author \emph{may} conduct some more research into the idea of network protocols but, in the meantime, thinks that \AgdaRecord{Protocol} should suffice for most purposes.
+\end{document}
