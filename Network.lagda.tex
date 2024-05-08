@@ -12,7 +12,17 @@
 The author presents and explains \AgdaModule{Network}, which is an Agda representation of network packets and connections.  Notable properties of \AgdaModule{Network} include extensibility, real-world examples, and at least some degree of formal verification.  However, \AgdaModule{Network} \emph{cannot} be directly used to actually establish network connections in the real world; \AgdaModule{Network} is a \texttt{--safe} module and, therefore, does not refer to \AgdaDatatype{IO}, which would be necessary for such establishment.
 \end{abstract}
 
-\chapter{Imported Packages}
+\chapter{Boilerplate Stuff}
+This section contains the declaration of the name of this module and some import statements.  These things would not fit too well in any other part of the document.
+
+\section{Module Declaration}
+The Agda parts of this paper constitute an Agda module.  Some submodules also exist.
+
+\begin{code}
+module Network where
+\end{code}
+
+\section{Imported Packages}
 The author wishes to \emph{not} rewrite \emph{all} utilities.
 
 \begin{code}
@@ -24,27 +34,61 @@ open import Data.Maybe
 open import Data.Product
 \end{code}
 
+\part{The Core Types}
+To prevent name clashes, this part constitutes an Agda module.
+
+\begin{code}
+module Core where
+\end{code}
+
 \chapter{Representation of Protocols}
 Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Additionally, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
 
 \AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, and \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
 
 \begin{code}
-record Protocol : Set1 where
-  field
-    name : String
-    shortName : Maybe String
-    addressType : Set
-    packetType : Set
+  record Protocol : Set1 where
+    field
+      name : String
+      shortName : Maybe String
+      addressType : Set
+      packetType : Set
 \end{code}
 
 \section{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
 \AgdaRecord{Protcol} is good for representing many sorts of protocols but may be incapable of unambiguously representing all imaginable protocols; the author is uncertain of a formal definition of ``network protocol'', and awareness of such a definition would facilitate defining a thing which resembles \AgdaRecord{Protocol} but an really be used to represent \emph{any} network protocol.  The author \emph{may} conduct some more research into the idea of network protocols but, in the meantime, thinks that \AgdaRecord{Protocol} should suffice for most purposes.
 
-\section{Selected Examples}
+\chapter{Representation of Packets}
+Without a representation of trasmissions, what is the usefulness of a system for representing protcols?  The author does not care and will define a datatype which facilitates representing the packets of any given protocol.
 
-\subsection{IPv4}
-For the sake of brevity and general readability, within this example, the ``\AgdaModule{TCP}'' prefix is omitted from the names of functions, constants, and such.
+A packet \(p\) for a protocol \(P\) can be thought of as being a combination of the following attributes:
+\begin{itemize}
+	\item the \(P\) address of the sender of \(p\),
+	\item the \(P\) address of the destination for \(p\), and
+	\item the actual content or payload of \(p\).
+\end{itemize}
+
+The address type and content type are protocol-specific.  Fortunately, with dependent types, defining such a type is a simple process.  This paper's definition of an abstract packet is as follows:
+
+\begin{code}
+  record Packet (protocol : Protocol) : Set where
+    field
+      source
+       destination : Protocol.addressType protocol
+      content : Protocol.packetType protocol
+\end{code}
+
+For a given \AgdaRecord{Packet} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
+\begin{itemize}
+	\item \AgdaField{Packet.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
+	\item \AgdaField{Packet.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
+	\item \AgdaField{Packet.content} \AgdaBound{p} is the payload of \AgdaBound{p}.
+\end{itemize}
+
+\part{Specific Protocols}
+
+\chapter{IPv4}
+For the sake of brevity and general readability, within this example, the ``\AgdaModule{IPv4}'' prefix is omitted from the names of functions, constants, and such.
 
 \begin{code}
 module IPv4 where
@@ -73,7 +117,7 @@ RFC 791 describes version 4 of the Internet Protocol, which is also known as ``I
 
 A naive approach involves using \AgdaDatatype{Fin} for everything.  However, the author uses the term ``naive'' because the author prefers the alternative, which involves the use of more expressive datatypes which are specifically designed \emph{for} IPv4, although the \AgdaDatatype{Fin} approach really does work well for some fields.
 
-\subsubsection{Addresses}
+\section{Addresses}
 That at least two fields can be absent from the \AgdaField{Protocol.packetType} type may be immediately obvious; \AgdaRecord{Protocol} has native support for address schemes.  At this point, an IPv4 address type should probably be created, so the author \emph{has} gone and created such a type!  Specifically, the type is \AgdaFunction{Address}, which is defined as follows:
 
 \begin{code}
@@ -83,7 +127,7 @@ That at least two fields can be absent from the \AgdaField{Protocol.packetType} 
 
 The definition of \AgdaFunction{Address} follows pretty directly from the RFC's definition of IPv4 addresses; \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{^}} \AgdaBound{x}\AgdaSymbol) is the type of the \AgdaBound{x}-bit natural numbers.
 
-\subsubsection{The Header Length Field}
+\section{The Header Length Field}
 Naively, one can say that the header length field is the combination of an appropriate \AgdaDatatype{Fin} number \(n\) and a proof which indicates that \(n \geq 5\).  In this case, the author actually \emph{likes} the naive approach.
 
 \begin{code}
@@ -91,10 +135,10 @@ Naively, one can say that the header length field is the combination of an appro
   IHL = Σ (Fin (2 ^ 4)) (\ n -> toℕ n ≥ 5)
 \end{code}
 
-\subsubsection{The Three Option Bits}
+\section{The Three Option Bits}
 An approach to representing the three option bits which yields a not-particularly-readable result involves the use of \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\circumflex}} \AgdaNumber{3}\AgdaSymbol).  However, the option bits an instead be represented as dedicated \AgdaDatatype{Bool} fields in a record type; this approach offers significantly more readability and prevents confusing the purposes of the individual option bits.
 
-\subsubsection{Payload Protocol}
+\section{Payload Protocol}
 The author suspects that the reader can predict the naive solution; accordingly, to preserve the author's dwindling sanity, the author will refrain from describing the naive approach.  The author's preferred approach involves defining a datatype which \emph{readably} represents the protocols which can be indicated by the payload protocol field.  The definition of the datatype is as follows:
 
 \begin{code}
@@ -253,37 +297,9 @@ The author suspects that the reader can predict the naive solution; accordingly,
 
 The author hopes that the meanings of the names of most constructors of arity 0 are obvious.  However, the author \emph{will} clarify that \AgdaInductiveConstructor{AX-25} corresponds to AX.25.  The author will \emph{also} clarify that \AgdaInductiveConstructor{Unassigned} \AgdaBound{n} is the \(k\)th IP protocol nmber, where \(k\) is defined to be equal to \AgdaNumber{146} \AgdaOperator{\AgdaFunction{+}} \AgdaFunction{toℕ} \AgdaBound{n}.
 
-\paragraph{Downside}
+\subsection{Downside}
 The main downside of this representation is the number of lines which are necessary for this description.  But the author still prefers \emph{this} solution over the naive solution, which is relatively unreadable and is \emph{still} left as an exercise for the reader.
 
-\paragraph{IPv6-Specific Values}
+\subsection{IPv6-Specific Values}
 Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor{Ethernet}, are actually specific to IPv6.  However, IPv6 and IPv4 use the same IP protocol numbers, and the author does not believe that listing all such protocol numbers is in any real way problematic.
-
-\chapter{Representation of Abstract Packets}
-Without a representation of trasmissions, what is the usefulness of a system for representing protcols?  The author does not care and will define a datatype which facilitates representing the packets of any given protocol.
-
-A packet \(p\) for a protocol \(P\) can be thought of as being a combination of the following attributes:
-\begin{itemize}
-	\item the \(P\) address of the sender of \(p\),
-	\item the \(P\) address of the destination for \(p\), and
-	\item the actual content or payload of \(p\).
-\end{itemize}
-
-The address type and content type are protocol-specific.  Fortunately, with dependent types, defining such a type is a simple process.  This paper's definition of an abstract packet is as follows:
-
-\begin{code}
-record Packet (protocol : Protocol) : Set where
-  field
-    source
-     destination : Protocol.addressType protocol
-    content : Protocol.packetType protocol
-\end{code}
-
-For a given \AgdaRecord{Packet} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
-\begin{itemize}
-	\item \AgdaField{Packet.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
-	\item \AgdaField{Packet.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
-	\item \AgdaField{Packet.content} \AgdaBound{p} is the payload of \AgdaBound{p}.
-\end{itemize}
-
 \end{document}
