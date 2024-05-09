@@ -35,6 +35,7 @@ The author wishes to \emph{not} rewrite \emph{all} utilities.
 \begin{code}
 import Data.String
 
+open import Relation.Binary.HeterogeneousEquality
 open import Data.Fin using (Fin; toℕ)
 open import Data.String using (String)
 open import Data.Nat
@@ -54,7 +55,7 @@ module Core where
 \chapter{Representation of Protocols}
 Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Additionally, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
 
-\AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, and \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
+\AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} value, \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol, \AgdaField{Protocol.addressType} \AgdaBound{p} is the type of network addresses which are used by the \AgdaBound{p} protocol, \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol, and \AgdaField{Protocol.isSerialized} \AgdaBound{p} is \AgdaInductiveConstructor{true} if and only if all \AgdaBound{p} packets have serialized equivalents.
 
 \begin{code}
   record Protocol : Set1 where
@@ -63,6 +64,7 @@ Formally, where \(P\) is a certain subset of networking protocols, \(P\) is char
       shortName : Maybe String
       addressType : Set
       packetType : Set
+      isSerialized : Bool
 \end{code}
 
 \section{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
@@ -86,6 +88,9 @@ The address type and content type are protocol-specific.  Fortunately, with depe
       source
        destination : Protocol.addressType protocol
       content : Protocol.packetType protocol
+      serialized : Maybe (Σ ℕ Fin)
+      serializationDemand  : Protocol.isSerialized protocol ≅ true
+                          -> Is-just serialized
 \end{code}
 
 For a given \AgdaRecord{Packet} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
@@ -93,6 +98,8 @@ For a given \AgdaRecord{Packet} \AgdaBound{P} value \AgdaBound{p}, the following
 	\item \AgdaField{Packet.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
 	\item \AgdaField{Packet.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
 	\item \AgdaField{Packet.content} \AgdaBound{p} is the payload of \AgdaBound{p}.
+	\item \AgdaField{Packet.serialized} \AgdaBound{p} is, somewhat optionally, a serialized version of packet.
+	\item \AgdaField{Packet.serializationDemand} \AgdaBound{p} indicates that if \AgdaBound{p} is a protocol whose packets \emph{must} be serializable, then a serialization of \AgdaBound{p} is immediately available.
 \end{itemize}
 
 \part{Specific Protocols}
@@ -373,6 +380,7 @@ Accordingly, the IPv4 protocol can be defined with an \AgdaRecord{Core.Protocol}
     ;shortName = just "IPv4"
     ;addressType = Address
     ;packetType = Packet
+    ;isSerialized = true
     }
 \end{code}
 
