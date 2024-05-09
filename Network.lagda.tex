@@ -375,4 +375,7 @@ Accordingly, the IPv4 protocol can be defined with an \AgdaRecord{Core.Protocol}
     ;packetType = Packet
     }
 \end{code}
+
+\section{The Addressful Packet Type}
+Really, because \AgdaRecord{Core.Packet} exists, no explicit definition of a type for addressful IPv4 packets is necessary.  For any appropriate \AgdaBound{p}, \AgdaRecord{Core.Packet} \AgdaBound{p} is the type of packets which adhere to the \AgdaBound{p} protocol, and \AgdaFunction{protocol} is a description of the IPv4 protocol; therefore, \AgdaRecord{Core.Packet} \AgdaFunction{protocol} is the type of IPv4 packets.
 \end{document}
