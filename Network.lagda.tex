@@ -33,11 +33,14 @@ module Network where
 The author wishes to \emph{not} rewrite \emph{all} utilities.
 
 \begin{code}
+import Data.String
+
 open import Data.Fin using (Fin; toℕ)
 open import Data.String using (String)
 open import Data.Nat
 open import Data.List
 open import Data.Maybe
+open import Data.Bool
 open import Data.Product
 \end{code}
 
@@ -309,4 +312,67 @@ The main downside of this representation is the number of lines which are necess
 
 \subsection{IPv6-Specific Values}
 Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor{Ethernet}, are actually specific to IPv6.  However, IPv6 and IPv4 use the same IP protocol numbers, and the author does not believe that listing all such protocol numbers is in any real way problematic.
+
+\section{The Packet Record}
+Armed with the preceding information, a type \AgdaRecord{Packet} can be decently easily defined such that for all \AgdaBound{p} of type \AgdaRecord{Packet}, the following statements hold:
+\begin{itemize}
+	\item \AgdaField{Packet.versionNumber} \AgdaBound{p} is the version number for the \AgdaField{p} packet.
+	\item \AgdaField{Packet.headerLength} \AgdaBound{p} is the combination of a four-bit number \(l\), which is the length of the header of the \AgdaBound{p} packet, and a value which guarantees that \(l \geq 5\).
+	\item \AgdaField{Packet.differentiatedServices} \AgdaBound{p} is the differentiated services code point for the \AgdaBound{p} packet.
+	\item \AgdaField{Packet.congestionNotification} \AgdaBound{p} is the explicit congestion notification for the \AgdaBound{p} packet.
+	\item \AgdaField{Packet.totalLength} \AgdaBound{p} is the total length of the \AgdaBound{p} packet.
+	\item \AgdaField{Packet.identification} \AgdaBound{p} is the raw content of the identification field of the \AgdaBound{p} packet.
+	\item \AgdaField{Packet.firstFlagBit} \AgdaBound{p} is \emph{reserved} and should be set to \AgdaInductiveConstructor{Fin.zero}.
+	\item \AgdaField{Packet.dontFragment} \AgdaBound{p} is true if and only if the \AgdaBound{p} packet \emph{must not} be fragmented into additional packets.
+	\item \AgdaField{Packet.moreFragments} \AgdaBound{p} is false if and only if the \AgdaBound{p} packet is the last of a series of fragmented packets or is a standalone packet.
+	\item \AgdaField{Packet.fragmentOffset} \AgdaBound{p}
+	\item \AgdaField{Packet.timeToLive} \AgdaBound{p}
+	\item \AgdaField{Packet.protocol} \AgdaBound{p} is the protocol of \AgdaField{Packet.payload} \AgdaBound{p}.
+	\item \AgdaField{Packet.headerChecksum} \AgdaBound{p} is the checksum of the header of the \AgdaBound{p} packet.
+	\item \AgdaField{Packet.options} \AgdaBound{p} is the raw options field for the \AgdaBound{p} packet.
+	\item \AgdaField{Packet.payload} \AgdaBound{p} is the payload of the \AgdaBound{p} packet.
+\end{itemize}
+
+\begin{code}
+  record Packet : Set where
+    field
+      versionNumber : Fin (2 ^ 4)
+      headerLength : IHL
+      differentiatedServices : Fin (2 ^ 6)
+      congestionNotification : Fin (2 ^ 2)
+      totalLength : Fin (2 ^ 16)
+      identification : Fin (2 ^ 16)
+      firstOptionBit : Bool
+      dontFragment : Bool
+      moreFragments : Bool
+      fragmentOffset : Fin (2 ^ 13)
+      timeToLive : Fin (2 ^ 8)
+      protocol : PayloadProtocol
+      headerChecksum : Fin (2 ^ 16)
+      options : Fin (2 ^ (toℕ (proj₁ headerLength) ∸ 5))
+      payload : Fin (2 ^ toℕ totalLength ∸ toℕ (proj₁ headerLength))
+\end{code}
+
+\subsection{On \AgdaField{Packet.payload}}
+The current typing scheme does \emph{not} ensure that for any appropriate \AgdaBound{p}, \AgdaField{Packet.protocol} \AgdaBound{p} actually describes the structure of \AgdaField{Packet.payload} \AgdaBound{p}; the \AgdaField{Packet.protocol} type is just a dumb \AgdaDatatype{Fin} type.  However, as indicated by the use of ``current'', this bit of information may eventually become outdated; such indication is strictly intentional.
+
+\section{The Protocol Record}
+With this information, the IPv4 protocol can be considered to have the following characteristics:
+\begin{itemize}
+	\item The long name of IPv4 is ``Internet Protocol version 4''.
+	\item IPv4 has a short name.  This short name is, obviously, ``IPv4''.
+	\item IPv4 addresses are 32-bit numbers, which are represented by \AgdaFunction{Address}.
+\end{itemize}
+
+Accordingly, the IPv4 protocol can be defined with an \AgdaRecord{Core.Protocol} record as follows:
+
+\begin{code}
+  protocol : Core.Protocol
+  protocol = record
+    {name = "Internet Protocol version 4"
+    ;shortName = just "IPv4"
+    ;addressType = Address
+    ;packetType = Packet
+    }
+\end{code}
 \end{document}
