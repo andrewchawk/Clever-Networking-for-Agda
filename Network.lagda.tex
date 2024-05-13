@@ -43,6 +43,7 @@ open import Data.String using (String)
 open import Data.Nat
 open import Data.List
 open import Data.Unit.Polymorphic
+open import Relation.Nullary
 open import Data.Maybe
 open import Data.Bool
 open import Data.Product
@@ -66,32 +67,20 @@ Formally, where \(P\) is a certain subset of networking protocols, \(P\) is char
 	\item \AgdaField{Protocol.name} \AgdaBound{p} is a long name of the \AgdaBound{p} protocol.
 	\item \AgdaField{Protocol.shortName} \AgdaBound{p} is, optionally, an abbreviation of the long name of the \AgdaBound{p} protocol.
 	\item If applicable, \AgdaField{Protocol.addressType} \AgdaBound{p} contains the type of network addresses which are used by the \AgdaBound{p} protocol.
-	\item \AgdaField{Protocol.packetType} \AgdaBound{p} is the type of all packets in the \AgdaBound{p} protocol.
+	\item \AgdaField{Protocol.headerType} \AgdaBound{p} is the type of all headers for packets in the \AgdaBound{p} protocol.
 	\item \AgdaField{Protocol.isSerialized} \AgdaBound{p} is \AgdaInductiveConstructor{true} if and only if all \AgdaBound{p} packets have serialized equivalents.
-	\item If \AgdaBound{p} packets can be encapsulated in packets of any other protocol, then \AgdaField{Protocol.carrierProtocols} \AgdaBound{p} is \AgdaInductiveConstructor{nothing}; otherwise, \AgdaField{Protocol.carrierProtocols} \AgdaBound{p} is a list of protocols which support the encapsulation of \AgdaBound{p} packets.
-	\item \AgdaField{Protocol.standaloneHasAddress} \AgdaBound{p} proves that if no protocols are approved for the carrying of the \AgdaBound{p} protocol, then the \AgdaBound{p} protocol has some sort of native addressing scheme.
-	\item \AgdaField{Protocol.serializedLikeCarrier} \emph{might} be mostly self-explanatory but indicates that protocols which are carried by serialized protocols must \emph{also} be serialized.
+\end{code}
 
 \begin{code}
-  record Protocol (l : Level) : Set (Level.suc l) where
-    inductive
-    field
-      name : String
-      shortName : Maybe String
-      addressType : Maybe Set
-      packetType : Set l
-      isSerialized : Bool
-      carrierProtocols : Maybe (List (Protocol l))
-      standaloneHasAddress : Is-just carrierProtocols -> Is-just addressType
-      serializedLikeCarrier :  (justProof : Is-just carrierProtocols)
-                            -- The following hole should be equivalent to
-                            -- Protocol.isSerialized cp, but
-                            -- Protocol.isSerialized
-                            -- does not work here.  The author is currently
-                            -- unaware of a good solution.
-                            -> Any (\ cp -> (Bool ∋ {!!}) ≅ true)
-                                   (to-witness justProof)
-                            -> isSerialized ≅ true
+  interleaved mutual
+    record Protocol (l : Level) : Set (Level.suc l) where
+      inductive
+      field
+        name : String
+        shortName : Maybe String
+        addressType : Maybe Set
+        headerType : Set l
+        isSerialized : Bool
 \end{code}
 
 \section{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
@@ -103,36 +92,115 @@ Without a representation of trasmissions, what is the usefulness of a system for
 A packet \(p\) for a protocol \(P\) can be thought of as being a combination of the following attributes:
 \begin{itemize}
 	\item the \(P\) address of the sender of \(p\),
-	\item the \(P\) address of the destination for \(p\), and
-	\item the actual content or payload of \(p\).
+	\item the \(P\) address of the destination for \(p\),
+	\item the payload of \(p\),
+	\item the actual content or payload of \(p\),
+	\item and, if applicable, a serialization of \(p\).
 \end{itemize}
 
 The address type and content type are protocol-specific.  Fortunately, with dependent types, defining such a type is a simple process.  This paper's definition of an abstract packet is as follows:
 
 \begin{code}
-  record Packet {l : Level} (protocol : Protocol l) : Set l where
-    field
-      source
-       destination : maybe (\ n -> n) ⊤ (Protocol.addressType protocol)
-      content : Protocol.packetType protocol
-      serialized : Maybe (Σ ℕ Fin)
-      serializationDemand  : Protocol.isSerialized protocol ≅ true
-                          -> Is-just serialized
+    record UPacket {l : Level} (protocol : Protocol l) : Set (Level.suc l) where
+      inductive
+      field
+        source
+         destination : maybe (\ n -> n) ⊤ (Protocol.addressType protocol)
+        payloadProtocol : Protocol l
+        payload : UPacket payloadProtocol
+        serialized : Maybe (Σ ℕ Fin)
+        serializationDemand  : Protocol.isSerialized protocol ≅ true
+                            -> Is-just serialized
 \end{code}
 
-For a given \AgdaRecord{Packet} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
+For a given \AgdaRecord{UPacket} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
 \begin{itemize}
-	\item \AgdaField{Packet.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
-	\item \AgdaField{Packet.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
-	\item \AgdaField{Packet.content} \AgdaBound{p} is the payload of \AgdaBound{p}.
-	\item \AgdaField{Packet.serialized} \AgdaBound{p} is, somewhat optionally, a serialized version of packet.
-	\item \AgdaField{Packet.serializationDemand} \AgdaBound{p} indicates that if \AgdaBound{p} is a protocol whose packets \emph{must} be serializable, then a serialization of \AgdaBound{p} is immediately available.
+	\item \AgdaField{UPacket.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
+	\item \AgdaField{UPacket.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
+	\item \AgdaField{UPacket.payload} \AgdaBound{p} is the payload of \AgdaBound{p}, which adheres to the \AgdaField{UPacket.payloadProtocol} \AgdaBound{p} protocol..
+	\item \AgdaField{UPacket.serialized} \AgdaBound{p} is, somewhat optionally, a serialized version of packet.
+	\item \AgdaField{UPacket.serializationDemand} \AgdaBound{p} indicates that if \AgdaBound{p} is a protocol whose packets \emph{must} be serializable, then a serialization of \AgdaBound{p} is immediately available.
 \end{itemize}
 
-\part{Specific Protocols}
+\section{Lack of Verification}
+The reader might have noticed that that \AgdaRecord{UPacket} has few verification fields; really, \AgdaRecord{UPacket} only verifies that packets have serialized versions when such serialized versions are really necessary.  Records for formal verifications will be defined soon.
 
-\chapter{IPv4}
-For the sake of brevity and general readability, within this example, the ``\AgdaModule{IPv4}'' prefix is omitted from the names of functions, constants, and such.
+\section{The Name}
+``\AgdaRecord{UPacket}'' is an abbreviation of \emph{something}, but the author does not certainly remember the nature of the abbreviation.  However, ``unverified'' and ``unsafe'' are reasonable expansions of the ``U'' in ``\AgdaRecord{UPacket}''.
+
+\chapter{Representation of Sets of Interrelated Protocols}
+A \AgdaRecord{ProtocolSet} record is a combination of a list of protocols and some guarantees about interaction between these protocols.  \AgdaRecord{ProtocolSet} enables indicating that interaction between protocols is verified such that no non-structly-positive nonsense is necessary.
+
+Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \AgdaBound{l}, the following statements hold:
+\begin{itemize}
+	\item For any value \AgdaSymbol(\AgdaBound{protocol} \AgdaSymbol , \AgdaBound{possiblyProtocols}\AgdaSymbol) in \AgdaField{ProtocolSet.protocols} \AgdaBound{ps}, the following statements hold:
+	\begin{itemize}
+		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{nothing}, then \emph{any} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
+		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{just} \AgdaBound{carrierProtocols}, then any \AgdaBound{carrierProtocols} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
+	\end{itemize}
+	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that repeatedly defining the carriers of any single protocol is at worst\footnote{In this case, feasibility is a \emph{bad} thing!  Impossibility is ideal here.} infeasible.
+	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that for a given protocol \(p\) whose carrier protocols are explicitly enumerated, the list of carrier protocols for \(p\) contains no repetitions.   This type does not forbid much of consequence but does encourage clean definitions.
+	\item \AgdaField{ProtocolSet.serialization-just} \AgdaBound{ps} ensures that if any protocol \(p\) supports a carrier protocol which demands serialization, then all \(p\) packets can be serialized.
+	\item \AgdaField{ProtocolSet.standaloneAddresses} \AgdaBound{ps} ensures that any protocol which supports \emph{no} carrier protocols has some sort of address scheme.
+\end{itemize}
+
+\begin{code}
+  record ProtocolSet (l : Level) : Set (Level.suc l) where
+    field
+      protocols : List (Protocol l × Maybe (List (Protocol l)))
+      carriedUniqueness :
+        (n : Fin (length protocols)) ->
+        ¬ Σ (Fin (length protocols))
+            (\ n2 -> (¬ n ≅ n2) ×
+                     (lookup protocols n ≅ lookup protocols n2))
+      carrierUniqueness :
+        (n : Fin (length protocols)) ->
+        (isJust : Is-just (proj₂ (lookup protocols n))) ->
+        let carriers = to-witness isJust in
+        ((m : Fin (length carriers)) ->
+         ¬ Σ (Fin (length carriers))
+             (\ m2 -> (¬ m ≅ m2) ×
+                      (lookup carriers m ≅ lookup carriers m2)))
+      serialization-just :
+        All (\ p -> (isJust : Is-just (proj₂ p))
+                 -> Any (_≅_ true ∘ Protocol.isSerialized)
+                        (to-witness isJust)
+                 -> true ≅ Protocol.isSerialized (proj₁ p))
+            protocols
+      standaloneAddresses :
+        All (\ p -> (isJust : Is-just (proj₂ p))
+                 -> length (to-witness isJust) ≅ 0
+                 -> Is-just (Protocol.addressType (proj₁ p)))
+            protocols
+\end{code}
+
+\chapter{Representing Verified Packets}
+For any value \AgdaBound{v) of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound{s}, the following statements hold:
+\begin{itemize}
+\item \AgdaBound{v} is the combination of a representation of a packet of the \AgdaBound{p} protocol and some guarantees regarding this packet.  Some guarantees pertain to the interactions which are defined through \AgdaBound{s}.  Other guarantees pertain to\ldots{}\ well\ldots{}\ other stuff.
+\item \AgdaField{UPacket.rawPacket} \AgdaBound{v} represents the actual packet.
+\item AgdaField{UPacket.carrierExists} \AgdaBound{v} ensures that \AgdaBound{s} actually supports the packet payload protocol.
+\item \AgdaField{UPacket.validCarrier-just} \AgdaBound{v} ensures that thr packet payload protocol actually supports being carried within packets for the \AgdaBound{p} protocol.
+
+\begin{code}
+  record Packet {l : Level}
+                (protocol : Protocol l)
+                (set : ProtocolSet l) :
+                Set (Level.suc l)
+    where
+    field
+      rawPacket : UPacket protocol
+      carrierExists :
+        Σ (Fin (length (ProtocolSet.protocols set)))
+          (\ n -> lookup (ProtocolSet.protocols set) n ≅
+                 UPacket.payloadProtocol rawPacket)
+      validCarrier-just  :
+        (isJust : Is-just (proj₂ (lookup (ProtocolSet.protocols set)
+                                         (proj₁ carrierExists)))) ->
+        Any (_≅_ (UPacket.payloadProtocol rawPacket)) (to-witness isJust)
+\end{code}
+
+\part{Specific Protocols}
 
 \begin{code}
 module IPv4 where
@@ -185,61 +253,41 @@ An approach to representing the three option bits which yields a not-particularl
 \subsection{IPv6-Specific Values}
 Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor{Ethernet}, are actually specific to IPv6.  However, IPv6 and IPv4 use the same IP protocol numbers, and the author does not believe that listing all such protocol numbers is in any real way problematic.
 
-\section{The Packet Record}
-First and foremost, the packet type references the protocol record, but the protocol record must also reference the packet type.  As such, both definitions are contained within an \AgdaKeyword{interleaved} \AgdaKeyword{mutual} block.
-
-\begin{code}
-  interleaved mutual
-\end{code}
-
-Moving on, armed with the preceding information which actually pertains to IPv4, a type \AgdaRecord{Packet} can be decently easily defined such that for all \AgdaBound{p} of type \AgdaRecord{Packet}, the following statements hold:
+\section{The Complete Header Record}
+Armed with the preceding information, a type \AgdaRecord{Header} can be decently easily defined such that for all \AgdaBound{p} of type \AgdaRecord{Header}, the following statements hold:
 \begin{itemize}
-	\item \AgdaField{Packet.versionNumber} \AgdaBound{p} is the version number for the \AgdaField{p} packet.
-	\item \AgdaField{Packet.headerLength} \AgdaBound{p} is the combination of a four-bit number \(l\), which is the length of the header of the \AgdaBound{p} packet, and a value which guarantees that \(l \geq 5\).
-	\item \AgdaField{Packet.differentiatedServices} \AgdaBound{p} is the differentiated services code point for the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.congestionNotification} \AgdaBound{p} is the explicit congestion notification for the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.totalLength} \AgdaBound{p} is the total length of the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.identification} \AgdaBound{p} is the raw content of the identification field of the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.firstFlagBit} \AgdaBound{p} is \emph{reserved} and should be set to \AgdaInductiveConstructor{Fin.zero}.
-	\item \AgdaField{Packet.dontFragment} \AgdaBound{p} is true if and only if the \AgdaBound{p} packet \emph{must not} be fragmented into additional packets.
-	\item \AgdaField{Packet.moreFragments} \AgdaBound{p} is false if and only if the \AgdaBound{p} packet is the last of a series of fragmented packets or is a standalone packet.
-	\item \AgdaField{Packet.fragmentOffset} \AgdaBound{p}
-	\item \AgdaField{Packet.timeToLive} \AgdaBound{p}
-	\item \AgdaField{Packet.headerChecksum} \AgdaBound{p} is the checksum of the header of the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.options} \AgdaBound{p} is the raw options field for the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.protocol} \AgdaBound{p} is the protocol of \AgdaField{Packet.payload} \AgdaBound{p}.
-	\item \AgdaField{Packet.payload} \AgdaBound{p} is the payload of the \AgdaBound{p} packet.
-	\item \AgdaField{Packet.protocolIsUsable} \AgdaBound{p} indicates that the \AgdaField{Packet.protocol} \AgdaBound{p} protocol actually supports having packets encapsulated within IPv4 packets.
-	\item \AgdaField{Packet.payloadLengthMatches} ensures that the payload length is actually the payload length which is calculated using \AgdaField{Packet.totalLength} \AgdaBound{p} and \AgdaField{Packet.headerLength p}.
+	\item \AgdaField{Header.versionNumber} \AgdaBound{p} is the version number for the \AgdaField{p} packet.
+	\item \AgdaField{Header.headerLength} \AgdaBound{p} is the combination of a four-bit number \(l\), which is the length of the header of the \AgdaBound{p} packet, and a value which guarantees that \(l \geq 5\).
+	\item \AgdaField{Header.differentiatedServices} \AgdaBound{p} is the differentiated services code point for the \AgdaBound{p} packet.
+	\item \AgdaField{Header.congestionNotification} \AgdaBound{p} is the explicit congestion notification for the \AgdaBound{p} packet.
+	\item \AgdaField{Header.totalLength} \AgdaBound{p} is the total length of the \AgdaBound{p} packet.
+	\item \AgdaField{Header.identification} \AgdaBound{p} is the raw content of the identification field of the \AgdaBound{p} packet.
+	\item \AgdaField{Header.firstFlagBit} \AgdaBound{p} is \emph{reserved} and should be set to \AgdaInductiveConstructor{Fin.zero}.
+	\item \AgdaField{Header.dontFragment} \AgdaBound{p} is true if and only if the \AgdaBound{p} packet \emph{must not} be fragmented into additional packets.
+	\item \AgdaField{Header.moreFragments} \AgdaBound{p} is false if and only if the \AgdaBound{p} packet is the last of a series of fragmented packets or is a standalone packet.
+	\item \AgdaField{Header.fragmentOffset} \AgdaBound{p}
+	\item \AgdaField{Header.timeToLive} \AgdaBound{p}
+	\item \AgdaField{Header.headerChecksum} \AgdaBound{p} is the checksum of the header of the \AgdaBound{p} packet.
+	\item \AgdaField{Header.options} \AgdaBound{p} is the raw options field for the \AgdaBound{p} packet.
 \end{itemize}
 
 \begin{code}
-    record Packet (l : Level) : Set (Level.suc l) where
-      field
-        versionNumber : Fin (2 ^ 4)
-        headerLength : IHL
-        differentiatedServices : Fin (2 ^ 6)
-        congestionNotification : Fin (2 ^ 2)
-        totalLength : Fin (2 ^ 16)
-        identification : Fin (2 ^ 16)
-        firstOptionBit : Bool
-        dontFragment : Bool
-        moreFragments : Bool
-        fragmentOffset : Fin (2 ^ 13)
-        timeToLive : Fin (2 ^ 8)
-        headerChecksum : Fin (2 ^ 16)
-        options : Fin (2 ^ (toℕ (proj₁ headerLength) ∸ 5))
-        protocol : Core.Protocol l
-        payload : Core.Packet protocol
-        protocolIsUsable : maybe (Any (_≅ protocol)) ⊤ (Core.Protocol.carrierProtocols protocol)
-        payloadLengthMatches :
-          let expectedLength = 2 ^ toℕ totalLength ∸ toℕ (proj₁ headerLength) in
-          let actualLength = Data.Maybe.map proj₁ (Core.Packet.serialized payload) in
-          actualLength ≅ just expectedLength
+  record Header (l : Level) : Set (Level.suc l) where
+    field
+      versionNumber : Fin (2 ^ 4)
+      headerLength : IHL
+      differentiatedServices : Fin (2 ^ 6)
+      congestionNotification : Fin (2 ^ 2)
+      totalLength : Fin (2 ^ 16)
+      identification : Fin (2 ^ 16)
+      firstOptionBit : Bool
+      dontFragment : Bool
+      moreFragments : Bool
+      fragmentOffset : Fin (2 ^ 13)
+      timeToLive : Fin (2 ^ 8)
+      headerChecksum : Fin (2 ^ 16)
+      options : Fin (2 ^ (toℕ (proj₁ headerLength) ∸ 5))
 \end{code}
-
-\subsection{On \AgdaField{Packet.payload}}
-The current typing scheme does \emph{not} ensure that for any appropriate \AgdaBound{p}, \AgdaField{Packet.protocol} \AgdaBound{p} actually describes the structure of \AgdaField{Packet.payload} \AgdaBound{p}; the \AgdaField{Packet.protocol} type is just a dumb \AgdaDatatype{Fin} type.  However, as indicated by the use of ``current'', this bit of information may eventually become outdated; such indication is strictly intentional.
 
 \section{The Protocol Record}
 With this information, the IPv4 protocol can be considered to have the following characteristics:
@@ -252,17 +300,14 @@ With this information, the IPv4 protocol can be considered to have the following
 Accordingly, the IPv4 protocol can be defined with an \AgdaRecord{Core.Protocol} record as follows:
 
 \begin{code}
-    protocol : (l : Level) -> Core.Protocol (Level.suc l)
-    protocol l = record
-      {name = "Internet Protocol version 4"
-      ;shortName = just "IPv4"
-      ;addressType = just Address
-      ;packetType = Packet l
-      ;isSerialized = true
-      ;carrierProtocols = {!!}
-      ;serializedLikeCarrier = \ _ _ -> refl
-      ;standaloneHasAddress = \ _ -> DataMaybe.Any.just _
-      }
+  protocol : (l : Level) -> Core.Protocol (Level.suc l)
+  protocol l = record
+    {name = "Internet Protocol version 4"
+    ;shortName = just "IPv4"
+    ;addressType = just Address
+    ;isSerialized = true
+    ;headerType = Header l
+    }
 \end{code}
 
 \section{The Addressful Packet Type}
