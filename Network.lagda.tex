@@ -72,15 +72,14 @@ Formally, where \(P\) is a certain subset of networking protocols, \(P\) is char
 \end{code}
 
 \begin{code}
-  interleaved mutual
-    record Protocol (l : Level) : Set (Level.suc l) where
-      inductive
-      field
-        name : String
-        shortName : Maybe String
-        addressType : Maybe Set
-        headerType : Set l
-        isSerialized : Bool
+  record Protocol (l : Level) : Set (Level.suc l) where
+    inductive
+    field
+      name : String
+      shortName : Maybe String
+      addressType : Maybe Set
+      headerType : Set l
+      isSerialized : Bool
 \end{code}
 
 \section{Can \AgdaRecord{Protocol} Unambiguously Represent \emph{Any} Network Protocol?}
@@ -101,16 +100,16 @@ A packet \(p\) for a protocol \(P\) can be thought of as being a combination of 
 The address type and content type are protocol-specific.  Fortunately, with dependent types, defining such a type is a simple process.  This paper's definition of an abstract packet is as follows:
 
 \begin{code}
-    record UPacket {l : Level} (protocol : Protocol l) : Set (Level.suc l) where
-      inductive
-      field
-        source
-         destination : maybe (\ n -> n) ⊤ (Protocol.addressType protocol)
-        payloadProtocol : Protocol l
-        payload : UPacket payloadProtocol
-        serialized : Maybe (Σ ℕ Fin)
-        serializationDemand  : Protocol.isSerialized protocol ≅ true
-                            -> Is-just serialized
+  record UPacket {l : Level} (protocol : Protocol l) : Set (Level.suc l) where
+    inductive
+    field
+      source
+       destination : maybe (\ n -> n) ⊤ (Protocol.addressType protocol)
+      payloadProtocol : Protocol l
+      payload : UPacket payloadProtocol
+      serialized : Maybe (Σ ℕ Fin)
+      serializationDemand  : Protocol.isSerialized protocol ≅ true
+                          -> Is-just serialized
 \end{code}
 
 For a given \AgdaRecord{UPacket} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
