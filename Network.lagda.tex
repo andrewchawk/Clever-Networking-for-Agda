@@ -139,6 +139,7 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
 	\item \AgdaField{ProtocolSet.serialization-just} \AgdaBound{ps} ensures that if any protocol \(p\) supports a carrier protocol which demands serialization, then all \(p\) packets can be serialized.
 	\item \AgdaField{ProtocolSet.standaloneAddresses} \AgdaBound{ps} ensures that any protocol which supports \emph{no} carrier protocols has some sort of address scheme.
 	\item \AgdaField{ProtocolSet.deserialize-serialize-is-just} \AgdaBound{ps} ensures that the serialization function only outputs values which can be correctly deserialized by the deserialization function.
+	\item \AgdaField{ProtocolSet.serialize-deserialize-is-just} \AgdaBound{ps} ensures that where for any packet's binary representation \(b\), the result of deserializing and reserializing \(b\) is the same old \(b\).
 \end{itemize}
 
 \begin{code}
@@ -183,6 +184,13 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
         (spP : Protocol.isSerialized (UPacket.payloadProtocol p) ≅ true) ->
         just p ≅
         universalDeserialize (universalSerialize P p sp spP)
+      serialize-deserialize-is-identical :
+        (n : Σ ℕ Fin) ->
+        (parsingSucceeds : Is-just (universalDeserialize n)) ->
+        let p = to-witness parsingSucceeds in
+        (sp : Protocol.isSerialized (proj₁ p) ≅ true)
+        (spP : Protocol.isSerialized (UPacket.payloadProtocol (proj₂ p)) ≅ true) ->
+        universalSerialize _ (proj₂ p) sp spP ≅ n
 \end{code}
 
 \chapter{Representing Verified Packets}
