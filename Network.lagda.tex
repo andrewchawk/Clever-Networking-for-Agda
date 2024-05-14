@@ -69,7 +69,7 @@ Formally, where \(P\) is a certain subset of networking protocols, \(P\) is char
 	\item If applicable, \AgdaField{Protocol.addressType} \AgdaBound{p} contains the type of network addresses which are used by the \AgdaBound{p} protocol.
 	\item \AgdaField{Protocol.headerType} \AgdaBound{p} is the type of all headers for packets in the \AgdaBound{p} protocol.
 	\item \AgdaField{Protocol.isSerialized} \AgdaBound{p} is \AgdaInductiveConstructor{true} if and only if all \AgdaBound{p} packets have serialized equivalents.
-\end{code}
+\end{itemize}
 
 \begin{code}
   interleaved mutual
@@ -133,7 +133,7 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
 		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{just} \AgdaBound{carrierProtocols}, then any \AgdaBound{carrierProtocols} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
 	\end{itemize}
 	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as indicated by the name, a universal packet serialization function for protocols which explicitly do serialization.  The use of ``universal'' also indicates that \emph{regardless of whether or not the \AgdaBound{P} protocol is actually allowed to carry the payload protocol}, \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaBound{P} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} is a serialized representation of the \AgdaBound{p} packet.
-	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as \emph{this} name \emph{also} indicates, a universal packet \emph{de}serialization function for protocols which explicitly do serialization.  The use of ``universal'' \emph{also} indicates that \emph{regardless of whether or not the carrierprotocol is actually allowed to carry the payload protocol}, if and only if \AgdaBound{n} can be interpreted as representing some sort of appropriate packet, then \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} AgdaBound{n} contains a representation of the \AgdaBound{n} packet.
+	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as \emph{this} name \emph{also} indicates, a universal packet \emph{de}serialization function for protocols which explicitly do serialization.  The use of ``universal'' \emph{also} indicates that \emph{regardless of whether or not the carrierprotocol is actually allowed to carry the payload protocol}, if and only if \AgdaBound{n} can be interpreted as representing some sort of appropriate packet, then \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaBound{n} contains a representation of the \AgdaBound{n} packet.
 	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that repeatedly defining the carriers of any single protocol is at worst\footnote{In this case, feasibility is a \emph{bad} thing!  Impossibility is ideal here.} infeasible.
 	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that for a given protocol \(p\) whose carrier protocols are explicitly enumerated, the list of carrier protocols for \(p\) contains no repetitions.   This type does not forbid much of consequence but does encourage clean definitions.
 	\item \AgdaField{ProtocolSet.serialization-just} \AgdaBound{ps} ensures that if any protocol \(p\) supports a carrier protocol which demands serialization, then all \(p\) packets can be serialized.
@@ -154,18 +154,16 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
         Σ ℕ Fin
       universalDeserialize : Σ ℕ Fin -> Maybe (Σ (Protocol l) UPacket)
       carriedUniqueness :
-        (n : Fin (length protocols)) ->
-        ¬ Σ (Fin (length protocols))
-            (\ n2 -> (¬ n ≅ n2) ×
-                     (lookup protocols n ≅ lookup protocols n2))
+        (n n2 : Fin (length protocols)) ->
+        ¬ n ≅ n2 ->
+        ¬ lookup protocols n ≅ lookup protocols n2
       carrierUniqueness :
         (n : Fin (length protocols)) ->
         (isJust : Is-just (proj₂ (lookup protocols n))) ->
         let carriers = to-witness isJust in
-        ((m : Fin (length carriers)) ->
-         ¬ Σ (Fin (length carriers))
-             (\ m2 -> (¬ m ≅ m2) ×
-                      (lookup carriers m ≅ lookup carriers m2)))
+        (m m2 : Fin (length carriers)) ->
+        ¬ m ≅ m2 ->
+        ¬ lookup carriers m ≅ lookup carriers m2
       serialization-just :
         All (\ p -> (isJust : Is-just (proj₂ p))
                  -> Any (_≅_ true ∘ Protocol.isSerialized)
@@ -194,12 +192,12 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
 \end{code}
 
 \chapter{Representing Verified Packets}
-For any value \AgdaBound{v) of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound{s}, the following statements hold:
+For any value \AgdaBound{v} of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound{s}, the following statements hold:
 	\begin{itemize}
 	\item \AgdaBound{v} is the combination of a representation of a packet of the \AgdaBound{p} protocol and some guarantees regarding this packet.  Some guarantees pertain to the interactions which are defined through \AgdaBound{s}.  Other guarantees pertain to\ldots{}\ well\ldots{}\ other stuff.
 	\item \AgdaField{UPacket.rawPacket} \AgdaBound{v} represents the actual packet.
-	\item AgdaField{UPacket.mainProtocolExists} \AgdaBound{v} ensures that interactions with the main protocol of the packet are actually defined in the appropriate \AgdaRecord{ProtocolSet} record.
-	\item AgdaField{UPacket.carrierExists} \AgdaBound{v} ensures that \AgdaBound{s} actually supports the packet payload protocol.
+	\item \AgdaField{UPacket.mainProtocolExists} \AgdaBound{v} ensures that interactions with the main protocol of the packet are actually defined in the appropriate \AgdaRecord{ProtocolSet} record.
+	\item \AgdaField{UPacket.carrierExists} \AgdaBound{v} ensures that \AgdaBound{s} actually supports the packet payload protocol.
 	\item \AgdaField{UPacket.validCarrier-just} \AgdaBound{v} ensures that thr packet payload protocol actually supports being carried within packets for the \AgdaBound{p} protocol.
 \end{itemize}
 
@@ -225,6 +223,13 @@ For any value \AgdaBound{v) of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound
 \end{code}
 
 \part{Specific Protocols}
+
+\begin{abstract}
+Using \AgdaRecord{Protocol}, and the like, the author defines expressive representations of protocols and corresponding packets.
+\end{abstract}
+
+\chapter{IPv4}
+This chapter defines a representation of IPv4.
 
 \begin{code}
 module IPv4 where
