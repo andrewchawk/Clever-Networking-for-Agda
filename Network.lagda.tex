@@ -93,9 +93,8 @@ A packet \(p\) for a protocol \(P\) can be thought of as being a combination of 
 \begin{itemize}
 	\item the \(P\) address of the sender of \(p\),
 	\item the \(P\) address of the destination for \(p\),
-	\item the payload of \(p\),
-	\item the actual content or payload of \(p\),
-	\item and, if applicable, a serialization of \(p\).
+	\item the payload of \(p\), and
+	\item the actual content or payload of \(p\).
 \end{itemize}
 
 The address type and content type are protocol-specific.  Fortunately, with dependent types, defining such a type is a simple process.  This paper's definition of an abstract packet is as follows:
@@ -108,9 +107,6 @@ The address type and content type are protocol-specific.  Fortunately, with depe
          destination : maybe (\ n -> n) ⊤ (Protocol.addressType protocol)
         payloadProtocol : Protocol l
         payload : UPacket payloadProtocol
-        serialized : Maybe (Σ ℕ Fin)
-        serializationDemand  : Protocol.isSerialized protocol ≅ true
-                            -> Is-just serialized
 \end{code}
 
 For a given \AgdaRecord{UPacket} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
@@ -118,8 +114,6 @@ For a given \AgdaRecord{UPacket} \AgdaBound{P} value \AgdaBound{p}, the followin
 	\item \AgdaField{UPacket.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
 	\item \AgdaField{UPacket.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
 	\item \AgdaField{UPacket.payload} \AgdaBound{p} is the payload of \AgdaBound{p}, which adheres to the \AgdaField{UPacket.payloadProtocol} \AgdaBound{p} protocol..
-	\item \AgdaField{UPacket.serialized} \AgdaBound{p} is, somewhat optionally, a serialized version of packet.
-	\item \AgdaField{UPacket.serializationDemand} \AgdaBound{p} indicates that if \AgdaBound{p} is a protocol whose packets \emph{must} be serializable, then a serialization of \AgdaBound{p} is immediately available.
 \end{itemize}
 
 \section{Lack of Verification}
@@ -138,16 +132,31 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
 		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{nothing}, then \emph{any} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
 		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{just} \AgdaBound{carrierProtocols}, then any \AgdaBound{carrierProtocols} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
 	\end{itemize}
+	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as indicated by the name, a universal packet serialization function for protocols which explicitly do serialization.  \emph{Regardless of whether or not the \AgdaBound{p} protocol is actually allowed to carry the \AgdaBound{pPayload} protocol}, \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaBound{p} is a serialized representation of the \AgdaBound{p} packet.
+	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as \emph{this} name \emph{also} indicates, a universal packet \emph{de}serialization function for protocols which explicitly do serialization.  \emph{Regardless of whether or not the \AgdaBound{p} protocol is actually allowed to carry the \AgdaBound{pPayload} protocol}, if and only if \AgdaBound{n} can be interpreted as representing some sort of appropriate packet, then \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaBound{n} is a representation of the \AgdaBound{n} packet.
 	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that repeatedly defining the carriers of any single protocol is at worst\footnote{In this case, feasibility is a \emph{bad} thing!  Impossibility is ideal here.} infeasible.
 	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that for a given protocol \(p\) whose carrier protocols are explicitly enumerated, the list of carrier protocols for \(p\) contains no repetitions.   This type does not forbid much of consequence but does encourage clean definitions.
 	\item \AgdaField{ProtocolSet.serialization-just} \AgdaBound{ps} ensures that if any protocol \(p\) supports a carrier protocol which demands serialization, then all \(p\) packets can be serialized.
 	\item \AgdaField{ProtocolSet.standaloneAddresses} \AgdaBound{ps} ensures that any protocol which supports \emph{no} carrier protocols has some sort of address scheme.
+	\item \AgdaField{ProtocolSet.deserialize-serialize-is-just} \AgdaBound{ps} ensures that the serialization function only outputs values which can be correctly deserialized by the deserialization function.
 \end{itemize}
 
 \begin{code}
   record ProtocolSet (l : Level) : Set (Level.suc l) where
     field
       protocols : List (Protocol l × Maybe (List (Protocol l)))
+      universalSerialize :
+        (p pPayload : Protocol l) ->
+        Protocol.isSerialized p ≅ true ->
+        Protocol.isSerialized pPayload ≅ true ->
+        UPacket pPayload ->
+        Σ ℕ Fin
+      universalDeserialize :
+        (p pPayload : Protocol l) ->
+        Protocol.isSerialized p ≅ true ->
+        Protocol.isSerialized pPayload ≅ true ->
+        Σ ℕ Fin ->
+        Maybe (UPacket pPayload)
       carriedUniqueness :
         (n : Fin (length protocols)) ->
         ¬ Σ (Fin (length protocols))
@@ -172,6 +181,14 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
                  -> length (to-witness isJust) ≅ 0
                  -> Is-just (Protocol.addressType (proj₁ p)))
             protocols
+      deserialize-serialize-is-just :
+        (p pPayload : Protocol l) ->
+        (sp : Protocol.isSerialized p ≅ true) ->
+        (spP : Protocol.isSerialized pPayload ≅ true) ->
+        (packet : UPacket pPayload) ->
+        just packet ≅
+        universalDeserialize p pPayload sp spP
+          (universalSerialize p pPayload sp spP packet)
 \end{code}
 
 \chapter{Representing Verified Packets}
