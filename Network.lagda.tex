@@ -132,8 +132,8 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
 		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{nothing}, then \emph{any} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
 		\item If \AgdaBound{possiblyProtocols} is \AgdaInductiveConstructor{just} \AgdaBound{carrierProtocols}, then any \AgdaBound{carrierProtocols} packet can encapsulate any packet of the \AgdaBound{protocol} protocol.
 	\end{itemize}
-	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as indicated by the name, a universal packet serialization function for protocols which explicitly do serialization.  \emph{Regardless of whether or not the \AgdaBound{p} protocol is actually allowed to carry the \AgdaBound{pPayload} protocol}, \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaBound{p} is a serialized representation of the \AgdaBound{p} packet.
-	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as \emph{this} name \emph{also} indicates, a universal packet \emph{de}serialization function for protocols which explicitly do serialization.  \emph{Regardless of whether or not the \AgdaBound{p} protocol is actually allowed to carry the \AgdaBound{pPayload} protocol}, if and only if \AgdaBound{n} can be interpreted as representing some sort of appropriate packet, then \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaBound{n} is a representation of the \AgdaBound{n} packet.
+	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as indicated by the name, a universal packet serialization function for protocols which explicitly do serialization.  The use of ``universal'' also indicates that \emph{regardless of whether or not the \AgdaBound{P} protocol is actually allowed to carry the payload protocol}, \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} \AgdaBound{P} \AgdaUnderscore{} \AgdaUnderscore{} \AgdaUnderscore{} is a serialized representation of the \AgdaBound{p} packet.
+	\item \AgdaField{ProtocolSet.universalSerialize} \AgdaBound{ps} is, as \emph{this} name \emph{also} indicates, a universal packet \emph{de}serialization function for protocols which explicitly do serialization.  The use of ``universal'' \emph{also} indicates that \emph{regardless of whether or not the carrierprotocol is actually allowed to carry the payload protocol}, if and only if \AgdaBound{n} can be interpreted as representing some sort of appropriate packet, then \AgdaField{ProtocolSet.universalSerialize} \AgdaUnderscore{} AgdaBound{n} contains a representation of the \AgdaBound{n} packet.
 	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that repeatedly defining the carriers of any single protocol is at worst\footnote{In this case, feasibility is a \emph{bad} thing!  Impossibility is ideal here.} infeasible.
 	\item \AgdaField{ProtocolSet.carrierUniqueness} \AgdaBound{ps} ensures that for a given protocol \(p\) whose carrier protocols are explicitly enumerated, the list of carrier protocols for \(p\) contains no repetitions.   This type does not forbid much of consequence but does encourage clean definitions.
 	\item \AgdaField{ProtocolSet.serialization-just} \AgdaBound{ps} ensures that if any protocol \(p\) supports a carrier protocol which demands serialization, then all \(p\) packets can be serialized.
@@ -146,17 +146,12 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
     field
       protocols : List (Protocol l × Maybe (List (Protocol l)))
       universalSerialize :
-        (p pPayload : Protocol l) ->
-        Protocol.isSerialized p ≅ true ->
-        Protocol.isSerialized pPayload ≅ true ->
-        UPacket pPayload ->
+        (P : Protocol l) ->
+        (p : UPacket P) ->
+        Protocol.isSerialized P ≅ true ->
+        Protocol.isSerialized (UPacket.payloadProtocol p) ≅ true ->
         Σ ℕ Fin
-      universalDeserialize :
-        (p pPayload : Protocol l) ->
-        Protocol.isSerialized p ≅ true ->
-        Protocol.isSerialized pPayload ≅ true ->
-        Σ ℕ Fin ->
-        Maybe (UPacket pPayload)
+      universalDeserialize : Σ ℕ Fin -> Maybe (Σ (Protocol l) UPacket)
       carriedUniqueness :
         (n : Fin (length protocols)) ->
         ¬ Σ (Fin (length protocols))
@@ -182,13 +177,12 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
                  -> Is-just (Protocol.addressType (proj₁ p)))
             protocols
       deserialize-serialize-is-just :
-        (p pPayload : Protocol l) ->
-        (sp : Protocol.isSerialized p ≅ true) ->
-        (spP : Protocol.isSerialized pPayload ≅ true) ->
-        (packet : UPacket pPayload) ->
-        just packet ≅
-        universalDeserialize p pPayload sp spP
-          (universalSerialize p pPayload sp spP packet)
+        (P : Protocol l) ->
+        (p : UPacket P) ->
+        (sp : Protocol.isSerialized P ≅ true) ->
+        (spP : Protocol.isSerialized (UPacket.payloadProtocol p) ≅ true) ->
+        just p ≅
+        universalDeserialize (universalSerialize P p sp spP)
 \end{code}
 
 \chapter{Representing Verified Packets}
