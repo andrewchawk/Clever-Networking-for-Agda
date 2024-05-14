@@ -187,11 +187,13 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
 
 \chapter{Representing Verified Packets}
 For any value \AgdaBound{v) of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound{s}, the following statements hold:
-\begin{itemize}
-\item \AgdaBound{v} is the combination of a representation of a packet of the \AgdaBound{p} protocol and some guarantees regarding this packet.  Some guarantees pertain to the interactions which are defined through \AgdaBound{s}.  Other guarantees pertain to\ldots{}\ well\ldots{}\ other stuff.
-\item \AgdaField{UPacket.rawPacket} \AgdaBound{v} represents the actual packet.
-\item AgdaField{UPacket.carrierExists} \AgdaBound{v} ensures that \AgdaBound{s} actually supports the packet payload protocol.
-\item \AgdaField{UPacket.validCarrier-just} \AgdaBound{v} ensures that thr packet payload protocol actually supports being carried within packets for the \AgdaBound{p} protocol.
+	\begin{itemize}
+	\item \AgdaBound{v} is the combination of a representation of a packet of the \AgdaBound{p} protocol and some guarantees regarding this packet.  Some guarantees pertain to the interactions which are defined through \AgdaBound{s}.  Other guarantees pertain to\ldots{}\ well\ldots{}\ other stuff.
+	\item \AgdaField{UPacket.rawPacket} \AgdaBound{v} represents the actual packet.
+	\item AgdaField{UPacket.mainProtocolExists} \AgdaBound{v} ensures that interactions with the main protocol of the packet are actually defined in the appropriate \AgdaRecord{ProtocolSet} record.
+	\item AgdaField{UPacket.carrierExists} \AgdaBound{v} ensures that \AgdaBound{s} actually supports the packet payload protocol.
+	\item \AgdaField{UPacket.validCarrier-just} \AgdaBound{v} ensures that thr packet payload protocol actually supports being carried within packets for the \AgdaBound{p} protocol.
+\end{itemize}
 
 \begin{code}
   record Packet {l : Level}
@@ -201,6 +203,9 @@ For any value \AgdaBound{v) of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound
     where
     field
       rawPacket : UPacket protocol
+      mainProtocolExists :
+        Any (_≅_ protocol)
+            (Data.List.map proj₁ (ProtocolSet.protocols set))
       carrierExists :
         Σ (Fin (length (ProtocolSet.protocols set)))
           (\ n -> lookup (ProtocolSet.protocols set) n ≅
