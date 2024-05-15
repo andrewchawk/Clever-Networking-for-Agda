@@ -13,7 +13,7 @@ The author presents and explains \AgdaModule{Network.ProtocolsAndPackets}, which
 \end{abstract}
 
 \chapter{Boilerplate Stuff}
-This section contains the declaration of the name of this module and some import statements.  These things would not fit too well in any other part of the document.
+This chapter contains the declaration of the name of this module and some import statements.  These things would not fit too well in any other part of the document.
 
 \section{Options}
 First and foremost --- actually, at this point in time, this option is the only one --- this document is safe, i.e., does not make use of postulates or any such nonsense.
@@ -33,9 +33,6 @@ module Network.ProtocolsAndPackets where
 The author wishes to \emph{not} rewrite \emph{all} utilities.
 
 \begin{code}
-import Data.String
-import Data.Maybe.Relation.Unary.Any as DataMaybe using (Any)
-
 open import Function
 open import Relation.Binary.HeterogeneousEquality
 open import Data.Fin using (Fin; toℕ)
@@ -60,7 +57,7 @@ module Core where
 \end{code}
 
 \chapter{Representation of Protocols}
-Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Additionally, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
+Formally, where \(P\) is a certain subset of networking protocols, \(P\) is characterized by being such that for all elements \(p\) of \(P\), \(p\) can be represented as the combination of a type for network addresses for \(p\), a type for network ports for \(p\), although \(p\) might not explicitly use network ports, and a type for \(p\) packets.  Also, any such \(p\) probably has a name, and the name might even be an abbreviation, which could be convenient.
 
 \AgdaRecord{Protocol} is an extension of this representation; where \AgdaBound{p} is some \AgdaRecord{Protocol} \AgdaBound{l} value, the following statements hold:
 \begin{itemize}
@@ -225,7 +222,7 @@ For any value \AgdaBound{v} of type \AgdaRecord{Packet} \AgdaBound{p} \AgdaBound
 \part{Specific Protocols}
 
 \begin{abstract}
-Using \AgdaRecord{Protocol}, and the like, the author defines expressive representations of protocols and corresponding packets.
+Using \AgdaRecord{Protocol} and the like, the author defines expressive representations of protocols and corresponding packets.
 \end{abstract}
 
 \chapter{IPv4}
@@ -236,7 +233,8 @@ module IPv4 where
 \end{code}
 
 RFC 791 describes version 4 of the Internet Protocol, which is also known as ``IPv4'', indicates that IPv4 addresses are 32-bit integers, and defines the IPv4 packet structure.  Specifically, RFC 791 indicates that any IPv4 packet \(p\) consists of the concatenation of the following fields:
-\begin{enumerate}
+
+\begin{itemize}
   \item a four-bit version number,
   \item a four-bit definition of the length of the header which \emph{must} be greater than or equal to five,
   \item a six-bit differentiated services code point,
@@ -254,7 +252,7 @@ RFC 791 describes version 4 of the Internet Protocol, which is also known as ``I
   \item a thirty-two-bit IPv4 address, indicating the destination of \(p\),
   \item an options field whose length is calculable, and
   \item a payload of calculable length.
-\end{enumerate}
+\end{itemize}
 
 A naive approach involves using \AgdaDatatype{Fin} for everything.  However, the author uses the term ``naive'' because the author prefers the alternative, which involves the use of more expressive datatypes which are specifically designed \emph{for} IPv4, although the \AgdaDatatype{Fin} approach really does work well for some fields.
 
@@ -284,6 +282,7 @@ Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor
 
 \section{The Complete Header Record}
 Armed with the preceding information, a type \AgdaRecord{Header} can be decently easily defined such that for all \AgdaBound{p} of type \AgdaRecord{Header}, the following statements hold:
+
 \begin{itemize}
   \item \AgdaField{Header.versionNumber} \AgdaBound{p} is the version number for the \AgdaField{p} packet.
   \item \AgdaField{Header.headerLength} \AgdaBound{p} is the combination of a four-bit number \(l\), which is the length of the header of the \AgdaBound{p} packet, and a value which guarantees that \(l \geq 5\).
@@ -320,6 +319,7 @@ Armed with the preceding information, a type \AgdaRecord{Header} can be decently
 
 \section{The Protocol Record}
 With this information, the IPv4 protocol can be considered to have the following characteristics:
+
 \begin{itemize}
   \item The long name of IPv4 is ``Internet Protocol version 4''.
   \item IPv4 has a short name.  This short name is, obviously, ``IPv4''.
@@ -341,4 +341,84 @@ Accordingly, the IPv4 protocol can be defined with an \AgdaRecord{Core.Protocol}
 
 \section{The Addressful Packet Type}
 Really, because \AgdaRecord{Core.Packet} exists, no explicit definition of a type for addressful IPv4 packets is necessary.  For any appropriate \AgdaBound{p}, \AgdaRecord{Core.Packet} \AgdaBound{p} is the type of packets which adhere to the \AgdaBound{p} protocol, and \AgdaFunction{protocol} is a description of the IPv4 protocol; therefore, \AgdaRecord{Core.Packet} \AgdaFunction{protocol} is the type of IPv4 packets.
+
+\chapter{IPv6}
+The situation with IPv4 is terrible; as of 2024, the address space has been exhausted for quite a while.  The address space for version 6 of the Internet Protocol, which is also known as ``IPv6'', is also finite but \emph{does} at least support significantly more addresses.  Because IPv6 is in some way superior to IPV4, this chapter defines a representation of IPv6; accordingly, \AgdaModule{Network.ProtocolsAndPackets} is now more capable than some Internet service providers.
+
+\begin{code}
+module IPv6 where
+\end{code}
+
+Much like with the definition of IPv4, the author begins with a look at the appropriate RFC, which, in this case, is RFC 8200.  RFC 8200 states that an IPv6 address is a 128-bit number and defines the structure of IPv4 packets, indicating that any IPv6 packet consists of the following values:
+
+\begin{itemize}
+  \item a four-bit version number,
+  \item a six-bit differentiated services field,
+  \item a two-bit Explicit Congestion Notification field,
+  \item a twenty-bit flow label,
+  \item a sixteen-bit number which indicates the length of the payload,
+  \item an eight-bit value which specifies the type of the next header,
+  \item an eight-bit hop limit,
+  \item a source address, and
+  \item a destination address.
+\end{itemize}
+
+\section{Addresses}
+For reasons which should be obvious, the source address and destination address can be omitted from the custom header type but should probably be defined.  The author's definition of the IPv6 address type is as follows:
+
+\begin{code}
+  Address : Set
+  Address = Fin (2 ^ 128)
+\end{code}
+
+\section{The Header Type}
+For a given value \AgdaBound{h} of type \AgdaRecord{Header} \AgdaBound{l}, the following statements hold:
+
+\begin{itemize}
+  \item \AgdaField{Header.versionNumber} \AgdaBound{h} is the version number of the \AgdaBound{h} packet.
+  \item \AgdaField{Header.differentiatedServices} \AgdaBound{h} is a straightforward representation of the differentiated services field of the \AgdaBound{h} packet.
+  \item \AgdaField{Header.congestionNotification} \AgdaBound{h} is a straightforward representation of the Explicit Congestion Notification field of the \AgdaBound{h} packet.
+  \item \AgdaField{Header.flowLabel} \AgdaBound{h} is a straightforward representation of the flow label of the \AgdaBound{h} packet.
+  \item \AgdaField{Header.payloadLength} \AgdaBound{h} is the length of the payload of the \AgdaBound{h} packet.
+  \item \AgdaField{Header.protocol} \AgdaBound{h} indicates the protocol of the payload of the \AgdaBound{h} packet.  Much like with \AgdaFunction{IPv4.Header}, to represent the next header field, \AgdaRecord{Protocol} can be used instead of a dedicated type or simple \AgdaDatatype{Fin} approach.
+  \item \AgdaField{Header.hopLimit} \AgdaBound{h} is the hop limit of the \AgdaBound{h} packet.
+
+\begin{code}
+  record Header (l : Level) : Set (Level.suc l) where
+    field
+      versionNumber : Fin (2 ^ 4)
+      differentiatedServices : Fin (2 ^ 6)
+      congestionNotification : Fin (2 ^ 2)
+      flowLabel : Fin (2 ^ 20)
+      payloadLength : Fin (2 ^ 16)
+      protocol : Core.Protocol l
+      hopLimit : Fin (2 ^ 8)
+\end{code}
+
+\section{The Protocol Record}
+Given this information and other information in the appropriate RFC, one can safely argue that the IPv6 protocol has the following characteristics:
+
+\begin{itemize}
+  \item The long name of IPv6 is ``Internet Protocol version 6''.
+  \item The short name of IPv6 is, obviously, ``IPv6''.
+  \item IPv6 addresses are \AgdaFunction{Address} values.
+  \item IPv6 is serialized.
+  \item IPv6 headers can be represented by \AgdaRecord{Header} values.
+\end{itemize}
+
+Accordingly, IPv6 can be described as follows:
+
+\begin{code}
+  protocol : (l : Level) -> Core.Protocol (Level.suc l)
+  protocol l = record
+    {name = "Internet Protocol version 6"
+    ;shortName = just "IPv6"
+    ;addressType = just Address
+    ;isSerialized = true
+    ;headerType = Header l
+    }
+\end{code}
+
+\section{The Packet Type}
+Defining the IPv6 packet type is left as an exercise for the reader.
 \end{document}
