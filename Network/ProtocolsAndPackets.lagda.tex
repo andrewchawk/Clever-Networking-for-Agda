@@ -47,6 +47,7 @@ open import Data.Product
 open import Data.List.Relation.Unary.All using (All)
 open import Data.List.Relation.Unary.Any using (Any)
 open import Level using (Level)
+open import Data.These
 \end{code}
 
 \part{The Core Types}
@@ -102,15 +103,15 @@ The address type and content type are protocol-specific.  Fortunately, with depe
       field
         source
          destination : maybe (\ n -> n) ⊤ (Protocol.addressType protocol)
-        payloadProtocol : Protocol l
-        payload : UPacket payloadProtocol
+        payloadProtocol : Maybe (Protocol l)
+        payload : maybe UPacket ⊤ payloadProtocol
 \end{code}
 
 For a given \AgdaRecord{UPacket} \AgdaBound{P} value \AgdaBound{p}, the following statements hold:
 \begin{itemize}
   \item \AgdaField{UPacket.source} \AgdaBound{p} is the address of the sender of \AgdaBound{p}.
   \item \AgdaField{UPacket.destination} \AgdaBound{p} is the address of the recipient of \AgdaBound{p}.
-  \item \AgdaField{UPacket.payload} \AgdaBound{p} is the payload of \AgdaBound{p}, which adheres to the \AgdaField{UPacket.payloadProtocol} \AgdaBound{p} protocol..
+  \item If applicable, \AgdaField{UPacket.payload} \AgdaBound{p} is the payload of \AgdaBound{p}, which adheres to the \AgdaField{UPacket.payloadProtocol} \AgdaBound{p} protocol.
 \end{itemize}
 
 \section{Lack of Verification}
@@ -147,7 +148,9 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
         (P : Protocol l) ->
         (p : UPacket P) ->
         Protocol.isSerialized P ≅ true ->
-        Protocol.isSerialized (UPacket.payloadProtocol p) ≅ true ->
+        let serialization = Data.Maybe.map Protocol.isSerialized
+                                           (UPacket.payloadProtocol p) in
+        These (serialization ≅ just true) (Is-nothing serialization) ->
         Σ ℕ Fin
       universalDeserialize : Σ ℕ Fin -> Maybe (Σ (Protocol l) UPacket)
       carriedUniqueness :
@@ -176,7 +179,7 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
         (P : Protocol l) ->
         (p : UPacket P) ->
         (sp : Protocol.isSerialized P ≅ true) ->
-        (spP : Protocol.isSerialized (UPacket.payloadProtocol p) ≅ true) ->
+        (spP : These (_ ≅ just true) (Is-nothing _)) ->
         just p ≅
         universalDeserialize (universalSerialize P p sp spP)
       serialize-deserialize-is-identical :
@@ -184,7 +187,7 @@ Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \Agd
         (parsingSucceeds : Is-just (universalDeserialize n)) ->
         let p = to-witness parsingSucceeds in
         (sp : Protocol.isSerialized (proj₁ p) ≅ true)
-        (spP : Protocol.isSerialized (UPacket.payloadProtocol (proj₂ p)) ≅ true) ->
+        (spP : These _ _) ->
         universalSerialize _ (proj₂ p) sp spP ≅ n
 \end{code}
 
