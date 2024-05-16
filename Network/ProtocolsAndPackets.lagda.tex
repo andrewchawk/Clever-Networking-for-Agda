@@ -13,7 +13,7 @@ The author presents and explains \AgdaModule{Network.ProtocolsAndPackets}, which
 \end{abstract}
 
 \chapter{Boilerplate Stuff}
-This chapter contains the declaration of the name of this module and some import statements.  These things would not fit too well in any other part of the document.
+This chapter contains the declaration of the name of this module, some import statements, and a few pattern definitions.  These things would not fit too well in any other part of the document.
 
 \section{Options}
 First and foremost --- actually, at this point in time, this option is the only one --- this document is safe, i.e., does not make use of postulates or any such nonsense.
@@ -36,6 +36,7 @@ The author wishes to \emph{not} rewrite \emph{all} utilities.
 open import Function
 open import Relation.Binary.HeterogeneousEquality
 open import Data.Fin using (Fin; toℕ)
+open import Data.Fin.Patterns
 open import Data.String using (String)
 open import Data.Nat
 open import Data.List
@@ -48,6 +49,53 @@ open import Data.List.Relation.Unary.All using (All)
 open import Data.List.Relation.Unary.Any using (Any)
 open import Level using (Level)
 open import Data.These
+\end{code}
+
+\section{Patterns and Patterns and Patterns}
+
+\begin{code}
+module AdditionalFinPatterns where
+  pattern 10F = Fin.suc 9F
+  pattern 11F = Fin.suc 10F
+  pattern 12F = Fin.suc 11F
+  pattern 13F = Fin.suc 12F
+  pattern 14F = Fin.suc 13F
+  pattern 15F = Fin.suc 14F
+  pattern 16F = Fin.suc 15F
+  pattern 17F = Fin.suc 16F
+  pattern 18F = Fin.suc 17F
+  pattern 19F = Fin.suc 18F
+  pattern 20F = Fin.suc 19F
+  pattern 21F = Fin.suc 20F
+  pattern 22F = Fin.suc 21F
+  pattern 23F = Fin.suc 22F
+  pattern 24F = Fin.suc 23F
+  pattern 25F = Fin.suc 24F
+  pattern 26F = Fin.suc 25F
+  pattern 27F = Fin.suc 26F
+  pattern 28F = Fin.suc 27F
+  pattern 29F = Fin.suc 28F
+  pattern 30F = Fin.suc 29F
+  pattern 31F = Fin.suc 30F
+  pattern 32F = Fin.suc 31F
+  pattern 33F = Fin.suc 32F
+  pattern 34F = Fin.suc 33F
+  pattern 35F = Fin.suc 34F
+  pattern 36F = Fin.suc 35F
+  pattern 37F = Fin.suc 36F
+  pattern 38F = Fin.suc 37F
+  pattern 39F = Fin.suc 38F
+  pattern 40F = Fin.suc 39F
+  pattern 41F = Fin.suc 40F
+  pattern 42F = Fin.suc 41F
+  pattern 43F = Fin.suc 42F
+  pattern 44F = Fin.suc 43F
+  pattern 45F = Fin.suc 44F
+  pattern 46F = Fin.suc 45F
+  pattern 47F = Fin.suc 46F
+  pattern 48F = Fin.suc 47F
+  pattern 49F = Fin.suc 48F
+  pattern 50F = Fin.suc 49F
 \end{code}
 
 \part{The Core Types}
@@ -424,4 +472,236 @@ Accordingly, IPv6 can be described as follows:
 
 \section{The Packet Type}
 Defining the IPv6 packet type is left as an exercise for the reader.
+
+\chapter{ICMP}
+This chapter describes the Internet Control Message Protocol, which is also defined in RFC 792.
+
+\begin{code}
+module ICMP where
+
+  open AdditionalFinPatterns
+\end{code}
+
+RFC 729 indicates that an ICMP packet \(m\) consists of the following fields:
+
+\begin{itemize}
+  \item an eight-bit ``type'' field which indicates the overall purpose or nature of \(m\),
+  \item a maximally eight-bit ``code'' field which provides supplemental information regarding the nature of \(m\),
+  \item a sixteen-bit checksum of a version of \(m\) which has a checksum which is just zero, and
+  \item an additional set of headers and such whose values depend upon the type of \(m\).
+\end{itemize}
+
+Well, actually, the RFC does not explicitly state that all ICMP messages contain type, code, and checksum fields; structure is defined by message type.  However, every message type which is defined in the RFC has the specified fields.  Anyway, dependent types really facilitate working with those unspecified additional headers.
+
+\section{The Subprotocols}
+ICMP messages can be thought of as being a collection of a carrier protocol and a bunch of ``subprotocols'', where a subprotocol just defines some additional header fields and the structure of the content of the ICMP message.  This paper uses this approach.
+
+\subsection{Boilerplate Records which are Not Directly Subprotocols}
+
+\begin{code}
+  module Boilerplate where
+    record IdSequence : Set where
+      field
+        identifier : Fin (2 ^ 16)
+        sequenceNumber : Fin (2 ^ 16)
+
+    record IPv4Context (l : Level) : Set (Level.suc l) where
+      field
+        header : IPv4.Header l
+        first8Bytes : Fin (2 ^ (8 * 8))
+\end{code}
+
+\subsection{Subprotocols and Supporting Functions}
+
+\begin{code}
+  module Subprotocol (l : Level) where
+\end{code}
+
+\begin{code}
+    withAttributes : {l : Level} -> String -> Set l -> Core.Protocol l
+    withAttributes name content = record
+      {name = name
+      ;shortName = nothing
+      ;addressType = nothing
+      ;isSerialized = true
+      ;headerType = content
+      }
+\end{code}
+
+\begin{code}
+    module Timestamp where
+      record Content : Set (Level.suc l) where
+        field
+          header : Boilerplate.IdSequence
+          originate
+           receive
+           transmit : Fin (2 ^ 32)
+        private
+          levelPadding = tt
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for timestamp-centric ICMP \
+                                \messages"
+                                Content
+\end{code}
+
+\begin{code}
+    module AddressMask where
+      record Content : Set (Level.suc l) where
+        field
+          header : Boilerplate.IdSequence
+          addressMask : Fin (2 ^ 32)
+        private
+          levelPadding = tt
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for address mask-centric ICMP messages"
+                                Content
+\end{code}
+
+\begin{code}
+    module TimeExceeded where
+      record Content : Set (Level.suc l) where
+        field
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = record
+        {name = "Subprotocol for ICMP messages about exceeded time"
+        ;shortName = nothing
+        ;addressType = nothing
+        ;isSerialized = true
+        ;headerType = Content
+        }
+\end{code}
+
+\begin{code}
+    module SourceQuench where
+      record Content : Set (Level.suc l) where
+        field
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for when the router says \
+                                \\"SHUT UP!\""
+                                Content
+\end{code}
+
+\begin{code}
+    module Redirect where
+      record Content : Set (Level.suc l) where
+        field
+          address : IPv4.Address
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for ICMP's redirection messages"
+                                Content
+\end{code}
+
+\begin{code}
+    module Unreachable where
+      record Content : Set (Level.suc l) where
+        field
+          nextHopMtu : Fin (2 ^ 16)
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for ICMP's messages regarding \
+                                \unreachability"
+                                Content
+\end{code}
+
+\begin{code}
+    module Unsupported where
+      record Content : Set (Level.suc l) where
+        field
+          rawContent : Σ ℕ Fin
+        private
+          levelPadding = tt
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Pseudo-subprotocol for ICMP which \
+                                \represents an unsupported subprotocol"
+                                Content
+\end{code}
+
+\begin{code}
+  Type : Set
+  Type = Fin (2 ^ 8)
+\end{code}
+
+\section{Representation of Code Values}
+In serialized ICMP packets, code values are represented as eight-bit fields; accordingly, a very simple representation of the code field is \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaSymbol{8}\AgdaSymbol).  However, for some type values, the behavior of only \emph{some} code values is defined; accordingly, for the sake of expressiveness, a code field type function \AgdaFunction{f} can be defined such that for a given type value \AgdaBound{type}, \AgdaFunction{f} \AgdaBound{type} is the type of all permissible code field values which complement \AgdaBound{type}.  \AgdaFunction{Code} is such a function but does not restrict the set of possibilities for every single \AgdaFunction{Type} value; if the specifics of the code field of the given type field value are unknown to \AgdaFunction{Code}, then the output is just bad old \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaSymbol{8}\AgdaSymbol).
+
+\begin{code}
+  Code : Type -> Set
+  Code = Fin ∘ helper
+    where
+    helper : Fin (2 ^ 8) -> ℕ
+    helper 0F = 1
+    helper 3F = 2 ^ 4
+    helper 4F = 1
+    helper 5F = 2 ^ 2
+    helper 8F = 1
+    helper 9F = 1
+    helper 10F = 1
+    helper 11F = 2
+    helper 12F = 3
+    helper 13F = 1
+    helper 14F = 1
+    helper 15F = 1
+    helper 16F = 1
+    helper 17F = 1
+    helper 18F = 1
+    helper 30F = 1
+    helper 42F = 1
+    helper 43F = 5
+    helper _ = 2 ^ 8
+\end{code}
+
+\section{The Function for Converting Type Field Values into ICMP Subprotocol Values}
+Given a \AgdaField{Type} value \AgdaBound{type}, if \AgdaFunction{RemainderType} explicitly supports \AgdaBound{type}, then \AgdaFunction{RemainderType} \AgdaUnderscore{} \AgdaBound{type} signifies the ICMP subprotocol which is indicated by \AgdaBound{type}.  If \AgdaFunction{RemainderType} does \emph{not} explicitly support \AgdaBound{type}, then \AgdaFunction{RemainderType} is the generic, unexpressive ICMP subprotocol type.
+
+\begin{code}
+  RemainderType  : (l : Level)
+                -> Type
+                -> Core.Protocol (Level.suc l)
+  RemainderType l = helper
+    where
+    helper : Fin (2 ^ 8) -> Core.Protocol (Level.suc l)
+    helper 3F = Subprotocol.Unreachable.protocol l
+    helper 4F = Subprotocol.SourceQuench.protocol l
+    helper 5F = Subprotocol.Redirect.protocol l
+    helper 11F = Subprotocol.TimeExceeded.protocol l
+    helper 13F = Subprotocol.Timestamp.protocol l
+    helper 14F = Subprotocol.Timestamp.protocol l
+    helper 17F = Subprotocol.AddressMask.protocol l
+    helper 18F = Subprotocol.AddressMask.protocol l
+    helper _ = Subprotocol.Unsupported.protocol l
+\end{code}
+
+\section{The Header Type}
+
+\begin{code}
+  record Header (l : Level) : Set (Level.suc (Level.suc l)) where
+    field
+      type : Type
+      code : Code type
+      checksum : Fin (2 ^ 16)
+      remainder : Core.UPacket (RemainderType l type)
+\end{code}
+
+\section{The Complete Protocol Record}
+
+\begin{code}
+  protocol : (l : Level) -> Core.Protocol (Level.suc (Level.suc l))
+  protocol l = record
+    {name = "Internet Control Message Protocol"
+    ;shortName = just "ICMP"
+    ;addressType = nothing
+    ;isSerialized = true
+    ;headerType = Header l
+    }
+\end{code}
 \end{document}
