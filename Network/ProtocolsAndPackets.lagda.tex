@@ -482,154 +482,75 @@ module ICMP where
   open AdditionalFinPatterns
 \end{code}
 
-RFC 729 indicates that an ICMP packet \(m\) consists of the following fields:
+\section{The Start of a Type for ICMP Overall}
+RFC 792 indicates that the following statements apply:
+
+\begin{itemize}
+  \item ICMP's name is ``Internet Control Message Protocol''.
+  \item The short name of ICMP is, obviously, ``ICMP''.
+  \item Parasitizing IPv4, ICMP does not necessarily use addresses.
+  \item ICMP does serialization.
+  \item ICMP packets do actually contain some sort of information.
+\end{itemize}
+
+Given the preceding information, one can reasonably write the following ICMP-representation-yielding function:
+
+\begin{code}
+  incompleteProtocol  : (l : Level)
+                     -> (Header  : (l : Level)
+                                -> Set (Level.suc (Level.suc l)))
+                     -> Core.Protocol (Level.suc (Level.suc l))
+  incompleteProtocol l Header = record
+    {name = "Internet Control Message Protocol"
+    ;shortName = just "ICMP"
+    ;addressType = nothing
+    ;isSerialized = true
+    ;headerType = Header l
+    }
+\end{code}
+
+However, as indicaterd by the use of ``yielding'', this function cannot yet be easily used to represent ICMP; the header --- and content, actually; the name is a bit misleading --- type is still undefined.  Accordingly, to complete this chapter, an ICMP header type must be defined!
+
+\section{The Start of a Type for ICMP Headers}
+
+RFC 792 indicates that an ICMP packet \(m\) consists of the following fields:
 
 \begin{itemize}
   \item an eight-bit ``type'' field which indicates the overall purpose or nature of \(m\),
-  \item a maximally eight-bit ``code'' field which provides supplemental information regarding the nature of \(m\),
+  \item a maximally eight-bit ``code'' field which provides supplemental information regarding the nature of \(m\), although many type values are only compatible with a few selected code field values,
   \item a sixteen-bit checksum of a version of \(m\) which has a checksum which is just zero, and
   \item an additional set of headers and such whose values depend upon the type of \(m\).
 \end{itemize}
 
-Well, actually, the RFC does not explicitly state that all ICMP messages contain type, code, and checksum fields; structure is defined by message type.  However, every message type which is defined in the RFC has the specified fields.  Anyway, dependent types really facilitate working with those unspecified additional headers.
-
-\section{The Subprotocols}
-ICMP messages can be thought of as being a collection of a carrier protocol and a bunch of ``subprotocols'', where a subprotocol just defines some additional header fields and the structure of the content of the ICMP message.  This paper uses this approach.
-
-\subsection{Boilerplate Records which are Not Directly Subprotocols}
-
-\begin{code}
-  module Boilerplate where
-    record IdSequence : Set where
-      field
-        identifier : Fin (2 ^ 16)
-        sequenceNumber : Fin (2 ^ 16)
-
-    record IPv4Context (l : Level) : Set (Level.suc l) where
-      field
-        header : IPv4.Header l
-        first8Bytes : Fin (2 ^ (8 * 8))
-\end{code}
-
-\subsection{Subprotocols and Supporting Functions}
-
-\begin{code}
-  module Subprotocol (l : Level) where
-\end{code}
-
-\begin{code}
-    withAttributes : {l : Level} -> String -> Set l -> Core.Protocol l
-    withAttributes name content = record
-      {name = name
-      ;shortName = nothing
-      ;addressType = nothing
-      ;isSerialized = true
-      ;headerType = content
-      }
-\end{code}
-
-\begin{code}
-    module Timestamp where
-      record Content : Set (Level.suc l) where
-        field
-          header : Boilerplate.IdSequence
-          originate
-           receive
-           transmit : Fin (2 ^ 32)
-        private
-          levelPadding = tt
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = withAttributes "Subprotocol for timestamp-centric ICMP \
-                                \messages"
-                                Content
-\end{code}
-
-\begin{code}
-    module AddressMask where
-      record Content : Set (Level.suc l) where
-        field
-          header : Boilerplate.IdSequence
-          addressMask : Fin (2 ^ 32)
-        private
-          levelPadding = tt
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = withAttributes "Subprotocol for address mask-centric ICMP messages"
-                                Content
-\end{code}
-
-\begin{code}
-    module TimeExceeded where
-      record Content : Set (Level.suc l) where
-        field
-          context : Boilerplate.IPv4Context l
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = record
-        {name = "Subprotocol for ICMP messages about exceeded time"
-        ;shortName = nothing
-        ;addressType = nothing
-        ;isSerialized = true
-        ;headerType = Content
-        }
-\end{code}
-
-\begin{code}
-    module SourceQuench where
-      record Content : Set (Level.suc l) where
-        field
-          context : Boilerplate.IPv4Context l
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = withAttributes "Subprotocol for when the router says \
-                                \\"SHUT UP!\""
-                                Content
-\end{code}
-
-\begin{code}
-    module Redirect where
-      record Content : Set (Level.suc l) where
-        field
-          address : IPv4.Address
-          context : Boilerplate.IPv4Context l
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = withAttributes "Subprotocol for ICMP's redirection messages"
-                                Content
-\end{code}
-
-\begin{code}
-    module Unreachable where
-      record Content : Set (Level.suc l) where
-        field
-          nextHopMtu : Fin (2 ^ 16)
-          context : Boilerplate.IPv4Context l
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = withAttributes "Subprotocol for ICMP's messages regarding \
-                                \unreachability"
-                                Content
-\end{code}
-
-\begin{code}
-    module Unsupported where
-      record Content : Set (Level.suc l) where
-        field
-          rawContent : Σ ℕ Fin
-        private
-          levelPadding = tt
-
-      protocol : Core.Protocol (Level.suc l)
-      protocol = withAttributes "Pseudo-subprotocol for ICMP which \
-                                \represents an unsupported subprotocol"
-                                Content
-\end{code}
+Well, actually, the RFC does not explicitly state that all ICMP messages contain type, code, and checksum fields; structure is defined by message type.  However, every message type which is defined in the RFC has the specified fields.  Anyway, dependent types really facilitate working with those unspecified additional headers.  Using this information, a type for ICMP records can be defined as follows:
 
 \begin{code}
   Type : Set
   Type = Fin (2 ^ 8)
+
+  record IncompleteHeader (l : Level)
+                          (Code : Type -> Set)
+                          (RemainderType : (l : Level) ->
+                                           Type ->
+                                           Core.Protocol (Level.suc l)) :
+                          Set (Level.suc (Level.suc l)) where
+    field
+      type : Type
+      code : Code type
+      checksum : Fin (2 ^ 16)
+      remainder : Core.UPacket (RemainderType l type)
 \end{code}
+
+For any value \AgdaBound{i} of type \AgdaRecord{IncompleteHeader} \AgdaBound{l} \AgdaBound{Code} \AgdaBound{RemainderType}, the following statements should hold:
+
+\begin{itemize}
+\item \AgdaField{IncompleteHeader.type} \AgdaBound{i} is the ICMP type of the \AgdaBound{i} message.
+\item \AgdaField{IncompleteHeader.code} \AgdaBound{i} is the ICMP code of the \AgdaBound{i} message.
+\item \AgdaField{IncompleteHeader.checksum} \AgdaBound{i} is the checksum of the version of the \AgdaBound{i} message whose checksum is just zero.
+\item \AgdaField{IncompleteHeader.remainder} \AgdaBound{i} is the additional informational content of the \AgdaBound{i} message.
+\end{itemize}
+
+However, this defininition just raises even \emph{more} questions.  Such questions pertain to the natures of the \AgdaBound{RemainderType} function and the \AgdaBound{Code} function.  But these questions will be answered in due time.
 
 \section{Representation of Code Values}
 In serialized ICMP packets, code values are represented as eight-bit fields; accordingly, a very simple representation of the code field is \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaSymbol{8}\AgdaSymbol).  However, for some type values, the behavior of only \emph{some} code values is defined; accordingly, for the sake of expressiveness, a code field type function \AgdaFunction{f} can be defined such that for a given type value \AgdaBound{type}, \AgdaFunction{f} \AgdaBound{type} is the type of all permissible code field values which complement \AgdaBound{type}.  \AgdaFunction{Code} is such a function but does not restrict the set of possibilities for every single \AgdaFunction{Type} value; if the specifics of the code field of the given type field value are unknown to \AgdaFunction{Code}, then the output is just bad old \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaSymbol{8}\AgdaSymbol).
@@ -660,6 +581,184 @@ In serialized ICMP packets, code values are represented as eight-bit fields; acc
     helper _ = 2 ^ 8
 \end{code}
 
+\section{The Subprotocols}
+ICMP messages can be thought of as being a collection of a carrier protocol and a bunch of ``subprotocols'', where a subprotocol just defines some additional header fields and the structure of the content of the ICMP message.  This paper uses this approach.
+
+\subsection{Boilerplate Records which are Not Directly Subprotocols}
+Some patterns of fields are frequent within different ICMP subprotocols.  For the sake of reducing the overall length of the ICMP definition and facilitating actually working with \AgdaModule{ICMP}, these frequently-used fields are defined alone in the \AgdaModule{Boilerplate} submodule.
+
+\begin{code}
+  module Boilerplate where
+
+    record IdSequence : Set where
+      field
+        identifier : Fin (2 ^ 16)
+        sequenceNumber : Fin (2 ^ 16)
+
+    record IPv4Context (l : Level) : Set (Level.suc l) where
+      field
+        header : IPv4.Header l
+        first8Bytes : Fin (2 ^ (8 * 8))
+\end{code}
+
+
+\subsection{Subprotocols and Supporting Functions}
+
+\begin{code}
+  module Subprotocol (l : Level) where
+\end{code}
+
+\subsubsection{The Subprotocol-Type-to-Protocol Function}
+Pretty much every subprotocol has the same repetitive \AgdaRecord{Core.Protocol} attributes; accordingly, to reduce the amount of boilerplate garbage, the author has defined \AgdaFunction{withAttributes}, which converts a given ICMP subprotocol header-and-content type into a usable representation of the subprotocol.
+
+\begin{code}
+    withAttributes : {l : Level} -> String -> Set l -> Core.Protocol l
+    withAttributes name content = record
+      {name = name
+      ;shortName = nothing
+      ;addressType = nothing
+      ;isSerialized = true
+      ;headerType = content
+      }
+\end{code}
+
+\subsubsection{Subprotocol for Timestamp Messages}
+Timestamp request messages and timestamp reply messages use the same subprotocol format, which is characterized by having the following fields:
+
+\begin{itemize}
+\item a message identifier,
+\item a sequence number,
+\item an originate timestamp,
+\item a receive timestamp, and
+\item a transmit timestamp.
+\end{itemize}
+
+All timestamps are thirty-two-bit values.
+
+\AgdaRecord{Boilerplate.IdSequence} can be easily used to represent the first two fields.  Using a basic \AgdaDatatype{Fin} type, the representation of timestamps is pretty straightforward, too.  With this information, a type \AgdaRecord{Timestamp.Content} for ICMP's timestamp-centric messages can be created as follows:
+
+\begin{code}
+    module Timestamp where
+      record Content : Set (Level.suc l) where
+        field
+          header : Boilerplate.IdSequence
+          originate
+           receive
+           transmit : Fin (2 ^ 32)
+        private
+          levelPadding = tt
+\end{code}
+
+With \AgdaFunction{withAttributes}, converting the record type into a usable subprotocol is pretty easy:
+
+\begin{code}
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for timestamp-centric ICMP \
+                                \messages"
+                                Content
+\end{code}
+
+\section{Subprotocol for Messages about Address Masks}
+The relevant RFC indicates that an address mask request or reply consists of the following additional values:
+
+\begin{itemize}
+\item the \AgdaRecord{Boilerplate.IdSequence} values and
+\item a thirty-two-bit address mask.
+\end{itemize}
+
+Accordingly, representation is pretty straightforward:
+
+\begin{code}
+    module AddressMask where
+      record Content : Set (Level.suc l) where
+        field
+          header : Boilerplate.IdSequence
+          addressMask : Fin (2 ^ 32)
+        private
+          levelPadding = tt
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for ICMP's address mask messages"
+                                Content
+\end{code}
+
+\subsubsection{Subprotocol for Messages about Exceeded Time}
+The RFC indicates that messages about exceeded time really only have two additional fields, which are an IPv4 header and the first eight bytes of the corresponding payload; these values provide context for the message.  As indicated by the use of the term ``context'', \AgdaRecord{Boilerplate.IPv4Context} is very useful here and makes quick work of this packet structure:
+
+\begin{code}
+    module TimeExceeded where
+      record Content : Set (Level.suc l) where
+        field
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for ICMP messages about exceeded \
+                                \time"
+                                Content
+\end{code}
+
+\subsubsection{Subprotocol for Source Quench Messages}
+The RFC indicates that source quench messages just provide context for the message, so representation is pretty simple:
+
+\begin{code}
+    module SourceQuench where
+      record Content : Set (Level.suc l) where
+        field
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for when the router says \
+                                \\"SHUT UP!\""
+                                Content
+\end{code}
+
+\subsubsection{Subprotocol for Redirection Messages}
+The RFC indicates that ICMP redirect messages have the beloved boilerplate context fields and an IPv4 address.  Accordingly, the definition is easy:
+
+\begin{code}
+    module Redirect where
+      record Content : Set (Level.suc l) where
+        field
+          address : IPv4.Address
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for ICMP's redirection messages"
+                                Content
+\end{code}
+
+\begin{code}
+    module Unreachable where
+      record Content : Set (Level.suc l) where
+        field
+          nextHopMtu : Fin (2 ^ 16)
+          context : Boilerplate.IPv4Context l
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Subprotocol for ICMP's messages regarding \
+                                \unreachability"
+                                Content
+\end{code}
+
+\subsubsection{The Generic Fallback Pseudo-Subprotocol}
+The subprotocol types which have so far been provided do not account for every possible ICMP message; as such, a generic fallback type for subprotocols is necessary.  In this case, the type is \AgdaRecord{Unsupported.Content}, which can --- with great ease --- represent any possible ICMP message.  However, \AgdaRecord{Unsupported.Content} offers no real restrictions or expressiveness, and, as such, the author recommends using the \AgdaModule{Unsupported} representations only if using any other representation is infeasible.
+
+Anyway, back to the point, the definition is as follows:
+
+\begin{code}
+    module Unsupported where
+      record Content : Set (Level.suc l) where
+        field
+          rawContent : Σ ℕ Fin
+        private
+          levelPadding = tt
+
+      protocol : Core.Protocol (Level.suc l)
+      protocol = withAttributes "Pseudo-subprotocol for ICMP which \
+                                \represents an unsupported subprotocol"
+                                Content
+\end{code}
+
 \section{The Function for Converting Type Field Values into ICMP Subprotocol Values}
 Given a \AgdaField{Type} value \AgdaBound{type}, if \AgdaFunction{RemainderType} explicitly supports \AgdaBound{type}, then \AgdaFunction{RemainderType} \AgdaUnderscore{} \AgdaBound{type} signifies the ICMP subprotocol which is indicated by \AgdaBound{type}.  If \AgdaFunction{RemainderType} does \emph{not} explicitly support \AgdaBound{type}, then \AgdaFunction{RemainderType} is the generic, unexpressive ICMP subprotocol type.
 
@@ -682,26 +781,18 @@ Given a \AgdaField{Type} value \AgdaBound{type}, if \AgdaFunction{RemainderType}
 \end{code}
 
 \section{The Header Type}
+Because the \AgdaBound{Code} and \AgdaBound{RemainderType} functions for \AgdaRecord{IncompleteHeader} have been defined, completing the representation of the header type is actually pretty easy:
 
 \begin{code}
-  record Header (l : Level) : Set (Level.suc (Level.suc l)) where
-    field
-      type : Type
-      code : Code type
-      checksum : Fin (2 ^ 16)
-      remainder : Core.UPacket (RemainderType l type)
+  Header : (l : Level) -> Set (Level.suc (Level.suc l))
+  Header l = IncompleteHeader l Code RemainderType
 \end{code}
 
 \section{The Complete Protocol Record}
+With that fancy new header type, defining the protocol record is also pretty easy:
 
 \begin{code}
   protocol : (l : Level) -> Core.Protocol (Level.suc (Level.suc l))
-  protocol l = record
-    {name = "Internet Control Message Protocol"
-    ;shortName = just "ICMP"
-    ;addressType = nothing
-    ;isSerialized = true
-    ;headerType = Header l
-    }
+  protocol l = incompleteProtocol l Header
 \end{code}
 \end{document}
