@@ -544,10 +544,10 @@ Well, actually, the RFC does not explicitly state that all ICMP messages contain
 For any value \AgdaBound{i} of type \AgdaRecord{IncompleteHeader} \AgdaBound{l} \AgdaBound{Code} \AgdaBound{RemainderType}, the following statements should hold:
 
 \begin{itemize}
-\item \AgdaField{IncompleteHeader.type} \AgdaBound{i} is the ICMP type of the \AgdaBound{i} message.
-\item \AgdaField{IncompleteHeader.code} \AgdaBound{i} is the ICMP code of the \AgdaBound{i} message.
-\item \AgdaField{IncompleteHeader.checksum} \AgdaBound{i} is the checksum of the version of the \AgdaBound{i} message whose checksum is just zero.
-\item \AgdaField{IncompleteHeader.remainder} \AgdaBound{i} is the additional informational content of the \AgdaBound{i} message.
+  \item \AgdaField{IncompleteHeader.type} \AgdaBound{i} is the ICMP type of the \AgdaBound{i} message.
+  \item \AgdaField{IncompleteHeader.code} \AgdaBound{i} is the ICMP code of the \AgdaBound{i} message.
+  \item \AgdaField{IncompleteHeader.checksum} \AgdaBound{i} is the checksum of the version of the \AgdaBound{i} message whose checksum is just zero.
+  \item \AgdaField{IncompleteHeader.remainder} \AgdaBound{i} is the additional informational content of the \AgdaBound{i} message.
 \end{itemize}
 
 However, this defininition just raises even \emph{more} questions.  Such questions pertain to the natures of the \AgdaBound{RemainderType} function and the \AgdaBound{Code} function.  But these questions will be answered in due time.
@@ -626,11 +626,11 @@ Pretty much every subprotocol has the same repetitive \AgdaRecord{Core.Protocol}
 Timestamp request messages and timestamp reply messages use the same subprotocol format, which is characterized by having the following fields:
 
 \begin{itemize}
-\item a message identifier,
-\item a sequence number,
-\item an originate timestamp,
-\item a receive timestamp, and
-\item a transmit timestamp.
+  \item a message identifier,
+  \item a sequence number,
+  \item an originate timestamp,
+  \item a receive timestamp, and
+  \item a transmit timestamp.
 \end{itemize}
 
 All timestamps are thirty-two-bit values.
@@ -662,8 +662,8 @@ With \AgdaFunction{withAttributes}, converting the record type into a usable sub
 The relevant RFC indicates that an address mask request or reply consists of the following additional values:
 
 \begin{itemize}
-\item the \AgdaRecord{Boilerplate.IdSequence} values and
-\item a thirty-two-bit address mask.
+  \item the \AgdaRecord{Boilerplate.IdSequence} values and
+  \item a thirty-two-bit address mask.
 \end{itemize}
 
 Accordingly, representation is pretty straightforward:
@@ -727,6 +727,9 @@ The RFC indicates that ICMP redirect messages have the beloved boilerplate conte
                                 Content
 \end{code}
 
+\subsubsection{Subprotocol for Unreachability Notifications}
+The RFC indicates that ICMP unreachability notices have the IPv4 context field and a sixteen-bit MTU.  The definition is straightforward:
+
 \begin{code}
     module Unreachable where
       record Content : Set (Level.suc l) where
@@ -784,9 +787,29 @@ Given a \AgdaField{Type} value \AgdaBound{type}, if \AgdaFunction{RemainderType}
 Because the \AgdaBound{Code} and \AgdaBound{RemainderType} functions for \AgdaRecord{IncompleteHeader} have been defined, completing the representation of the header type is actually pretty easy:
 
 \begin{code}
-  Header : (l : Level) -> Set (Level.suc (Level.suc l))
-  Header l = IncompleteHeader l Code RemainderType
+  CompleteHeader : (l : Level) -> Set (Level.suc (Level.suc l))
+  CompleteHeader l = IncompleteHeader l Code RemainderType
 \end{code}
+
+However, actually using \AgdaFunction{CompleteHeader} is \emph{not} pretty easy; when fields are used, at one point or another, \AgdaRecord{IncompleteHeader} has to be referenced, which could be confusing.  \AgdaRecord{IncompleteHeader} really only exists for the sake of enlightening the reader about the definition process, so from this point on, no use of the incomplete header function is actually necessary.  Accordingly, a new, more usable header type can be created:
+
+\begin{code}
+  record Header (l : Level) : Set (Level.suc (Level.suc l)) where
+    field
+      type : Type
+      code : Code type
+      checksum : Fin (2 ^ 32)
+      remainder : Core.UPacket (RemainderType l type)
+\end{code}
+
+For any value \AgdaBound{h} of type \AgdaRecord{Header} \AgdaBound{l}, the following statements should hold:
+
+\begin{itemize}
+  \item \AgdaField{Header.type} \AgdaBound{h} is the ICMP type of the \AgdaBound{h} message.
+  \item \AgdaField{Header.code} \AgdaBound{h} is the ICMP code of the \AgdaBound{h} message.
+  \item \AgdaField{Header.checksum} \AgdaBound{h} is the checksum of the version of the \AgdaBound{h} message whose checksum is just zero.
+  \item \AgdaField{Header.remainder} \AgdaBound{h} is the additional informational content of the \AgdaBound{h} message.
+\end{itemize}
 
 \section{The Complete Protocol Record}
 With that fancy new header type, defining the protocol record is also pretty easy:
