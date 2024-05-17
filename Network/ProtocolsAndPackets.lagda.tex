@@ -1,7 +1,18 @@
 \documentclass{report}
 
+\usepackage{newunicodechar}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{parskip}
 % The coloring distracts the author.
 \usepackage[bw]{agda}
+
+% What is a good place for this crap?
+\newunicodechar{⊤}{\ensuremath{\mathnormal{\top}}}
+\newunicodechar{ℕ}{\ensuremath{\mathnormal{\mathbb{N}}}}
+\newunicodechar{₁}{\ensuremath{\mathnormal{_1}}}
+\newunicodechar{₂}{\ensuremath{\mathnormal{_2}}}
+\newunicodechar{≅}{\ensuremath{\mathnormal{\cong}}}
 
 \title{\AgdaModule{Network.ProtocolsAndPackets}: An Extensible and Expressive but Slightly Clever Agda Module for the Representation of Protocols and Packets for Networks}
 
@@ -52,6 +63,7 @@ open import Data.These
 \end{code}
 
 \section{Patterns and Patterns and Patterns}
+This section --- and module --- contains various pattern definitions which exist to enable the writing of definitions which are expressive \emph{and} short.
 
 \begin{code}
 module AdditionalFinPatterns where
@@ -169,7 +181,7 @@ The reader might have noticed that that \AgdaRecord{UPacket} has few verificatio
 ``\AgdaRecord{UPacket}'' is an abbreviation of \emph{something}, but the author does not certainly remember the nature of the abbreviation.  However, ``unverified'' and ``unsafe'' are reasonable expansions of the ``U'' in ``\AgdaRecord{UPacket}''.
 
 \chapter{Representation of Sets of Interrelated Protocols}
-A \AgdaRecord{ProtocolSet} record is a combination of a list of protocols and some guarantees about interaction between these protocols.  \AgdaRecord{ProtocolSet} enables indicating that interaction between protocols is verified such that no non-structly-positive nonsense is necessary.
+A \AgdaRecord{ProtocolSet} record is a combination of a list of protocols and some guarantees about interaction between these protocols.  \AgdaRecord{ProtocolSet} enables indicating that interaction between protocols is verified such that no non-strictly-positive nonsense is necessary.
 
 Specifically, for any value \AgdaBound{ps} of type \AgdaRecord{ProtocolSet} \AgdaBound{l}, the following statements hold:
 \begin{itemize}
@@ -293,7 +305,7 @@ RFC 791 describes version 4 of the Internet Protocol, which is also known as ``I
   \item a sixteen-bit integer which defines the total length of \(p\),
   \item a sixteen-bit identification field,
   \item a zero bit,
-  \item a bit which indicates whether or not \(p\) must not be fragmented, with a one indicating that the packet must \emph{not} be fragmented},
+  \item a bit which indicates whether or not \(p\) must not be fragmented, with a one indicating that the packet must \emph{not} be fragmented,
   \item a bit which indicates whether or not \(p\) is the last of a series of fragmented packets,
   \item a thirteen-bit fragment offset field,
   \item an eight-bit time-to-live field,
@@ -315,7 +327,7 @@ That at least two fields can be absent from the \AgdaField{Protocol.packetType} 
   Address = Fin (2 ^ 32)
 \end{code}
 
-The definition of \AgdaFunction{Address} follows pretty directly from the RFC's definition of IPv4 addresses; \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{^}} \AgdaBound{x}\AgdaSymbol) is the type of the \AgdaBound{x}-bit natural numbers.
+The definition of \AgdaFunction{Address} follows pretty directly from the RFC's definition of IPv4 addresses; \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaBound{x}\AgdaSymbol) is the type of the \AgdaBound{x}-bit natural numbers.
 
 \section{The Header Length Field}
 Naively, one can say that the header length field is the combination of an appropriate \AgdaDatatype{Fin} number \(n\) and a proof which indicates that \(n \geq 5\).  In this case, the author actually \emph{likes} the naive approach.
@@ -326,7 +338,7 @@ Naively, one can say that the header length field is the combination of an appro
 \end{code}
 
 \section{The Three Option Bits}
-An approach to representing the three option bits which yields a not-particularly-readable result involves the use of \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\circumflex}} \AgdaNumber{3}\AgdaSymbol).  However, the option bits an instead be represented as dedicated \AgdaDatatype{Bool} fields in a record type; this approach offers significantly more readability and prevents confusing the purposes of the individual option bits.
+An approach to representing the three option bits which yields a not-particularly-readable result involves the use of \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaNumber{3}\AgdaSymbol).  However, the option bits an instead be represented as dedicated \AgdaDatatype{Bool} fields in a record type; this approach offers significantly more readability and prevents confusing the purposes of the individual option bits.
 
 \subsection{IPv6-Specific Values}
 Some \AgdaDatatype{PayloadProtocol} contructors, e.g., \AgdaInductiveConstructor{Ethernet}, are actually specific to IPv6.  However, IPv6 and IPv4 use the same IP protocol numbers, and the author does not believe that listing all such protocol numbers is in any real way problematic.
@@ -433,6 +445,7 @@ For a given value \AgdaBound{h} of type \AgdaRecord{Header} \AgdaBound{l}, the f
   \item \AgdaField{Header.payloadLength} \AgdaBound{h} is the length of the payload of the \AgdaBound{h} packet.
   \item \AgdaField{Header.protocol} \AgdaBound{h} indicates the protocol of the payload of the \AgdaBound{h} packet.  Much like with \AgdaFunction{IPv4.Header}, to represent the next header field, \AgdaRecord{Protocol} can be used instead of a dedicated type or simple \AgdaDatatype{Fin} approach.
   \item \AgdaField{Header.hopLimit} \AgdaBound{h} is the hop limit of the \AgdaBound{h} packet.
+\end{itemize}
 
 \begin{code}
   record Header (l : Level) : Set (Level.suc l) where
@@ -482,7 +495,7 @@ module ICMP where
   open AdditionalFinPatterns
 \end{code}
 
-\section{The Start of a Type for ICMP Overall}
+\section{The Generic ICMP Representation}
 RFC 792 indicates that the following statements apply:
 
 \begin{itemize}
@@ -490,96 +503,23 @@ RFC 792 indicates that the following statements apply:
   \item The short name of ICMP is, obviously, ``ICMP''.
   \item Parasitizing IPv4, ICMP does not necessarily use addresses.
   \item ICMP does serialization.
-  \item ICMP packets do actually contain some sort of information.
+  \item None of the boilerplate headers really apply to non-serialized representations of packets.
 \end{itemize}
 
-Given the preceding information, one can reasonably write the following ICMP-representation-yielding function:
+Given the preceding information, one can reasonably write the following ICMP representation:
 
 \begin{code}
-  incompleteProtocol  : (l : Level)
-                     -> (Header  : (l : Level)
-                                -> Set (Level.suc (Level.suc l)))
-                     -> Core.Protocol (Level.suc (Level.suc l))
-  incompleteProtocol l Header = record
+  carrierProtocol : Core.Protocol Level.zero
+  carrierProtocol = record
     {name = "Internet Control Message Protocol"
     ;shortName = just "ICMP"
     ;addressType = nothing
     ;isSerialized = true
-    ;headerType = Header l
+    ;headerType = ⊤
     }
 \end{code}
 
-However, as indicaterd by the use of ``yielding'', this function cannot yet be easily used to represent ICMP; the header --- and content, actually; the name is a bit misleading --- type is still undefined.  Accordingly, to complete this chapter, an ICMP header type must be defined!
-
-\section{The Start of a Type for ICMP Headers}
-
-RFC 792 indicates that an ICMP packet \(m\) consists of the following fields:
-
-\begin{itemize}
-  \item an eight-bit ``type'' field which indicates the overall purpose or nature of \(m\),
-  \item a maximally eight-bit ``code'' field which provides supplemental information regarding the nature of \(m\), although many type values are only compatible with a few selected code field values,
-  \item a sixteen-bit checksum of a version of \(m\) which has a checksum which is just zero, and
-  \item an additional set of headers and such whose values depend upon the type of \(m\).
-\end{itemize}
-
-Well, actually, the RFC does not explicitly state that all ICMP messages contain type, code, and checksum fields; structure is defined by message type.  However, every message type which is defined in the RFC has the specified fields.  Anyway, dependent types really facilitate working with those unspecified additional headers.  Using this information, a type for ICMP records can be defined as follows:
-
-\begin{code}
-  Type : Set
-  Type = Fin (2 ^ 8)
-
-  record IncompleteHeader (l : Level)
-                          (Code : Type -> Set)
-                          (RemainderType : (l : Level) ->
-                                           Type ->
-                                           Core.Protocol (Level.suc l)) :
-                          Set (Level.suc (Level.suc l)) where
-    field
-      type : Type
-      code : Code type
-      checksum : Fin (2 ^ 16)
-      remainder : Core.UPacket (RemainderType l type)
-\end{code}
-
-For any value \AgdaBound{i} of type \AgdaRecord{IncompleteHeader} \AgdaBound{l} \AgdaBound{Code} \AgdaBound{RemainderType}, the following statements should hold:
-
-\begin{itemize}
-  \item \AgdaField{IncompleteHeader.type} \AgdaBound{i} is the ICMP type of the \AgdaBound{i} message.
-  \item \AgdaField{IncompleteHeader.code} \AgdaBound{i} is the ICMP code of the \AgdaBound{i} message.
-  \item \AgdaField{IncompleteHeader.checksum} \AgdaBound{i} is the checksum of the version of the \AgdaBound{i} message whose checksum is just zero.
-  \item \AgdaField{IncompleteHeader.remainder} \AgdaBound{i} is the additional informational content of the \AgdaBound{i} message.
-\end{itemize}
-
-However, this defininition just raises even \emph{more} questions.  Such questions pertain to the natures of the \AgdaBound{RemainderType} function and the \AgdaBound{Code} function.  But these questions will be answered in due time.
-
-\section{Representation of Code Values}
-In serialized ICMP packets, code values are represented as eight-bit fields; accordingly, a very simple representation of the code field is \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaSymbol{8}\AgdaSymbol).  However, for some type values, the behavior of only \emph{some} code values is defined; accordingly, for the sake of expressiveness, a code field type function \AgdaFunction{f} can be defined such that for a given type value \AgdaBound{type}, \AgdaFunction{f} \AgdaBound{type} is the type of all permissible code field values which complement \AgdaBound{type}.  \AgdaFunction{Code} is such a function but does not restrict the set of possibilities for every single \AgdaFunction{Type} value; if the specifics of the code field of the given type field value are unknown to \AgdaFunction{Code}, then the output is just bad old \AgdaDatatype{Fin} \AgdaSymbol(\AgdaNumber{2} \AgdaOperator{\AgdaFunction{\textasciicircum{}}} \AgdaSymbol{8}\AgdaSymbol).
-
-\begin{code}
-  Code : Type -> Set
-  Code = Fin ∘ helper
-    where
-    helper : Fin (2 ^ 8) -> ℕ
-    helper 0F = 1
-    helper 3F = 2 ^ 4
-    helper 4F = 1
-    helper 5F = 2 ^ 2
-    helper 8F = 1
-    helper 9F = 1
-    helper 10F = 1
-    helper 11F = 2
-    helper 12F = 3
-    helper 13F = 1
-    helper 14F = 1
-    helper 15F = 1
-    helper 16F = 1
-    helper 17F = 1
-    helper 18F = 1
-    helper 30F = 1
-    helper 42F = 1
-    helper 43F = 5
-    helper _ = 2 ^ 8
-\end{code}
+However, as indicated by the use of \AgdaDatatype{⊤}, this record is not terribly useful alone.  Luckily, \AgdaRecord{Core.UPacket} values can contain payloads of a given protocol, and the various ICMP message types can be thought of as actually being different protocols.
 
 \section{The Subprotocols}
 ICMP messages can be thought of as being a collection of a carrier protocol and a bunch of ``subprotocols'', where a subprotocol just defines some additional header fields and the structure of the content of the ICMP message.  This paper uses this approach.
@@ -601,7 +541,6 @@ Some patterns of fields are frequent within different ICMP subprotocols.  For th
         first8Bytes : Fin (2 ^ (8 * 8))
 \end{code}
 
-
 \subsection{Subprotocols and Supporting Functions}
 
 \begin{code}
@@ -622,6 +561,17 @@ Pretty much every subprotocol has the same repetitive \AgdaRecord{Core.Protocol}
       }
 \end{code}
 
+\subsubsection{The Supporting ``Request or Reply'' Type}
+There exist ICMP message structures \(\mathrm{thing}_1\) and \(\mathrm{thing}_2\) such that the overall structure and semantics of \(\mathrm{thing}_1\) are the overall structure and semantics of \(\mathrm{thing}_2\), but \(\mathrm{thing}_1\) and \(\mathrm{thing}_2\) represent requests and responses, respectively.  Instead of defining separate representations for requests and replies, by using a relevant type, subprotocol representations can instead indicate whether the message is a request or a response.  \AgdaDatatype{RequestOrReply} is such a type.  \AgdaInductiveConstructor{Request} and \AgdaInductiveConstructor{Reply} indicate, as expected, requests and replies, respectively.
+
+\begin{code}
+    data RequestOrReply : Set where
+      Request : RequestOrReply
+      Reply : RequestOrReply
+\end{code}
+
+Really, this type is just a differently-named boolean type.  However, the different naming scheme offers additional expressiveness and enables the reasonable use of simpler field names.
+
 \subsubsection{Subprotocol for Timestamp Messages}
 Timestamp request messages and timestamp reply messages use the same subprotocol format, which is characterized by having the following fields:
 
@@ -633,15 +583,16 @@ Timestamp request messages and timestamp reply messages use the same subprotocol
   \item a transmit timestamp.
 \end{itemize}
 
-All timestamps are thirty-two-bit values.
+All timestamps are thirty-two-bit values.  Also, timestamp requests and timestamp replies have different message types.
 
-\AgdaRecord{Boilerplate.IdSequence} can be easily used to represent the first two fields.  Using a basic \AgdaDatatype{Fin} type, the representation of timestamps is pretty straightforward, too.  With this information, a type \AgdaRecord{Timestamp.Content} for ICMP's timestamp-centric messages can be created as follows:
+\AgdaRecord{Boilerplate.IdSequence} can be easily used to represent the first two fields.  Using a basic \AgdaDatatype{Fin} type, the representation of timestamps is pretty straightforward, too.  \AgdaDatatype{RequestOrReply} lends well to indicating whether the message is a request or a reply.  With this information, a type \AgdaRecord{Timestamp.Content} for ICMP's timestamp-centric messages can be created as follows:
 
 \begin{code}
     module Timestamp where
       record Content : Set (Level.suc l) where
         field
           header : Boilerplate.IdSequence
+          requestOrReply : RequestOrReply
           originate
            receive
            transmit : Fin (2 ^ 32)
@@ -673,6 +624,7 @@ Accordingly, representation is pretty straightforward:
       record Content : Set (Level.suc l) where
         field
           header : Boilerplate.IdSequence
+          requestOrReply : RequestOrReply
           addressMask : Fin (2 ^ 32)
         private
           levelPadding = tt
@@ -752,6 +704,9 @@ Anyway, back to the point, the definition is as follows:
     module Unsupported where
       record Content : Set (Level.suc l) where
         field
+          type : Fin (2 ^ 8)
+          code : Fin (2 ^ 8)
+          checksum : Fin (2 ^ 16)
           rawContent : Σ ℕ Fin
         private
           levelPadding = tt
@@ -762,60 +717,20 @@ Anyway, back to the point, the definition is as follows:
                                 Content
 \end{code}
 
-\section{The Function for Converting Type Field Values into ICMP Subprotocol Values}
-Given a \AgdaField{Type} value \AgdaBound{type}, if \AgdaFunction{RemainderType} explicitly supports \AgdaBound{type}, then \AgdaFunction{RemainderType} \AgdaUnderscore{} \AgdaBound{type} signifies the ICMP subprotocol which is indicated by \AgdaBound{type}.  If \AgdaFunction{RemainderType} does \emph{not} explicitly support \AgdaBound{type}, then \AgdaFunction{RemainderType} is the generic, unexpressive ICMP subprotocol type.
-
-\begin{code}
-  RemainderType  : (l : Level)
-                -> Type
-                -> Core.Protocol (Level.suc l)
-  RemainderType l = helper
-    where
-    helper : Fin (2 ^ 8) -> Core.Protocol (Level.suc l)
-    helper 3F = Subprotocol.Unreachable.protocol l
-    helper 4F = Subprotocol.SourceQuench.protocol l
-    helper 5F = Subprotocol.Redirect.protocol l
-    helper 11F = Subprotocol.TimeExceeded.protocol l
-    helper 13F = Subprotocol.Timestamp.protocol l
-    helper 14F = Subprotocol.Timestamp.protocol l
-    helper 17F = Subprotocol.AddressMask.protocol l
-    helper 18F = Subprotocol.AddressMask.protocol l
-    helper _ = Subprotocol.Unsupported.protocol l
-\end{code}
-
-\section{The Header Type}
-Because the \AgdaBound{Code} and \AgdaBound{RemainderType} functions for \AgdaRecord{IncompleteHeader} have been defined, completing the representation of the header type is actually pretty easy:
-
-\begin{code}
-  CompleteHeader : (l : Level) -> Set (Level.suc (Level.suc l))
-  CompleteHeader l = IncompleteHeader l Code RemainderType
-\end{code}
-
-However, actually using \AgdaFunction{CompleteHeader} is \emph{not} pretty easy; when fields are used, at one point or another, \AgdaRecord{IncompleteHeader} has to be referenced, which could be confusing.  \AgdaRecord{IncompleteHeader} really only exists for the sake of enlightening the reader about the definition process, so from this point on, no use of the incomplete header function is actually necessary.  Accordingly, a new, more usable header type can be created:
-
-\begin{code}
-  record Header (l : Level) : Set (Level.suc (Level.suc l)) where
-    field
-      type : Type
-      code : Code type
-      checksum : Fin (2 ^ 32)
-      remainder : Core.UPacket (RemainderType l type)
-\end{code}
-
-For any value \AgdaBound{h} of type \AgdaRecord{Header} \AgdaBound{l}, the following statements should hold:
+A value \AgdaBound{u} of type \AgdaRecord{Content} should satisfies the following statements:
 
 \begin{itemize}
-  \item \AgdaField{Header.type} \AgdaBound{h} is the ICMP type of the \AgdaBound{h} message.
-  \item \AgdaField{Header.code} \AgdaBound{h} is the ICMP code of the \AgdaBound{h} message.
-  \item \AgdaField{Header.checksum} \AgdaBound{h} is the checksum of the version of the \AgdaBound{h} message whose checksum is just zero.
-  \item \AgdaField{Header.remainder} \AgdaBound{h} is the additional informational content of the \AgdaBound{h} message.
+  \item \AgdaField{Content.type} \AgdaBound{u} is the value of the type field of the \AgdaBound{u} message.
+  \item \AgdaField{Content.code} \AgdaBound{u} is the value of the code field of the \AgdaBound{u} message.
+  \item \AgdaField{Content.checksum} \AgdaBound{u} is the value of the checksum field of the version of the \AgdaBound{u} message whose checksum is just zero.
+  \item \AgdaField{Content.rawContent} \AgdaBound{u} is the serialized representation of the rest of the \AgdaBound{u} message.
 \end{itemize}
 
-\section{The Complete Protocol Record}
-With that fancy new header type, defining the protocol record is also pretty easy:
+\section{Renaming the Generic ICMP Record}
+To prevent name clashes, the original name of the ICMP representation is ``\AgdaFunction{carrierProtocol}''.  However, this name conflicts with the names of other protocols; the standard name is just ``\AgdaFunction{protocol}''.  Accordingly, to increase the ease of referring to ICMP, the author creates the following alias for the ICMP representation:
 
 \begin{code}
-  protocol : (l : Level) -> Core.Protocol (Level.suc (Level.suc l))
-  protocol l = incompleteProtocol l Header
+  protocol : Core.Protocol Level.zero
+  protocol = carrierProtocol
 \end{code}
 \end{document}
